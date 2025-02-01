@@ -1,0 +1,65 @@
+import argparse
+import logging
+import optuna
+import tensorflow as tf
+import cudf
+import matplotlib.pyplot as plt
+from ccfd.config.settings import Config
+from ccfd.utils.gpu_utils import monitor_gpu
+from ccfd.data.preprocess import preprocess_data
+from ccfd.models.train import train_model, objective
+from ccfd.models.evaluate import evaluate_model
+from ccfd.scripts.predict import make_predictions
+from ccfd.utils.visualization import plot_tuning_results
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+def main(mode: str, tune: bool = False):
+    """
+    Main function to run the ML pipeline.
+
+    Args:
+        mode (str): 'train', 'evaluate', or 'predict'
+        tune (bool): Whether to run hyperparameter tuning
+    """
+    logger.info(f"Starting pipeline in {mode} mode")
+
+    # Monitor GPU memory usage
+    monitor_gpu()
+
+    # Load & preprocess data
+    df_train, df_test = preprocess_data(Config.DATA_PATH)
+
+    if tune:
+        logger.info("Running hyperparameter tuning...")
+
+        # Optuna Study
+        study = optuna.create_study(direction="maximize")
+        study.optimize(lambda trial: objective(trial, df_train), n_trials=20)
+
+        # Log Best Trial
+        logger.info(f"Best hyperparameters: {study.best_params}")
+        logger.info(f"Best accuracy: {study.best_value:.4f}")
+
+        # Save & visualize results
+        study.trials_dataframe().to_csv("tuning_results.csv", index=False)
+        plot_tuning_results(study)  # Plot hyperparameter impact
+
+    if mode == "train":
+        model = train_model(df_train)
+    elif mode == "evaluate":
+        evaluate_model(df_test)
+    elif mode == "predict":
+        make_predictions(df_test)
+    else:
+        logger.error("Invalid mode. Choose from 'train', 'evaluate', or 'predict'.")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run ML pipeline")
+    parser.add_argument("mode", choices=["train", "evaluate", "predict"], help="Pipeline mode")
+    parser.add_argument("--tune", action="store_true", help="Enable hyperparameter tuning")
+    args = parser.parse_args()
+
+    main(args.mode, args.tune)
