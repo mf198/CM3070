@@ -29,6 +29,7 @@ def train_cuml_random_forest(X_train: cudf.DataFrame, y_train: cudf.Series) -> R
 
     model = RandomForestClassifier(n_estimators=100, n_streams=1, random_state=18)
     model.fit(X_train, y_train)
+
     return model
 
 

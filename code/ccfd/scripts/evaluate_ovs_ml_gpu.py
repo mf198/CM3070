@@ -14,7 +14,8 @@ from ccfd.data.dataset import load_dataset
 from ccfd.data.preprocess import clean_dataset
 from ccfd.utils.timer import Timer
 from ccfd.utils.gpu_monitor import track_gpu_during_training
-
+from ccfd.utils.tensorboard_model_logger import ModelTensorBoardLogger
+from ccfd.utils.tensorboard_gpu_logger import GPUTensorBoardLogger
 
 def prepare_data(df: cudf.DataFrame, target_column: str = "Class"):
     """Splits the dataset into GPU-based training and test sets."""
@@ -46,13 +47,18 @@ def test_models_with_oversampling(filepath: str):
         "LogisticRegression": train_cuml_logistic_regression,
         "RandomForest": train_cuml_random_forest,
         "kNN": train_cuml_knn,        
-        "SGD": train_cuml_mbgd,
+        #"SGD": train_cuml_mbgd,
         "XGBoost": train_cuml_xgboost
     }
 
     results = []
     total_oversamplings = len(oversampling_methods)
     total_models = len(models)
+
+    # Initialize GPU Monitor    
+    # Initialize TensorBoard loggers
+    model_monitor =  ModelTensorBoardLogger(log_dir="runs/model_monitor")
+    gpu_monitor = GPUTensorBoardLogger(log_dir="runs/gpu_monitor")
 
     # Loops into oversampling methods    
     for oversampling_name, oversampling_function in oversampling_methods.items():
@@ -64,27 +70,38 @@ def test_models_with_oversampling(filepath: str):
         X_train, X_test, y_train, y_test = prepare_data(df_balanced)
 
         # Loops into ML models
+        stat = 0
         for model_name, model_function in models.items():
             print(f"\n🚀 Training {model_name} with {oversampling_name}...")
-
-            timer.start()
+            
             model = model_function(X_train, y_train)
-            elapsed_time = timer.elapsed_final()            
-
-            print(f"⏱️ Elapsed time: {elapsed_time:.2f} seconds")
-            
-            model, elapsed_time = track_gpu_during_training(model_function, X_train, y_train)
-            
+            #model, elapsed_time = track_gpu_during_training(model_function, X_train, y_train)
+                        
             metrics = evaluate_cuml_model(model, X_test, y_test)
             metrics["Model"] = model_name
             metrics["Oversampling"] = oversampling_name
-            metrics["Training Time (s)"] = round(elapsed_time, 2)
-            results.append(metrics)        
+            #metrics["Training Time (s)"] = round(elapsed_time, 2)
 
+            # Log GPU usage
+            gpu_monitor.log_gpu_stats(stat)
+            stat += 1
+
+            # Log model 
+            model_monitor.log_scalar("Accuracy", metrics["accuracy"], 0)
+            model_monitor.log_scalar("Precision", metrics["precision"], 0)
+            model_monitor.log_scalar("Recall", metrics["recall"], 0)
+
+            results.append(metrics)
+    
     results_df = pd.DataFrame(results)
     results_df.to_csv("cuml_oversampling_results.csv", index=False)
 
+    # Close GPU monitor
+    gpu_monitor.close()   
+    model_monitor.close()
 
 if __name__ == "__main__":
     dataset_path = "ccfd/data/creditcard.csv"  # Change to your dataset path
     test_models_with_oversampling(dataset_path)
+
+    
