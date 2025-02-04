@@ -70,7 +70,7 @@ def test_models_with_oversampling(filepath: str):
         X_train, X_test, y_train, y_test = prepare_data(df_balanced)
 
         # Loops into ML models
-        stat = 0
+        step = 0
         for model_name, model_function in models.items():
             print(f"\n🚀 Training {model_name} with {oversampling_name}...")
             
@@ -83,13 +83,14 @@ def test_models_with_oversampling(filepath: str):
             #metrics["Training Time (s)"] = round(elapsed_time, 2)
 
             # Log GPU usage
-            gpu_monitor.log_gpu_stats(stat)
-            stat += 1
+            gpu_monitor.log_gpu_stats(step)            
 
             # Log model 
-            model_monitor.log_scalar("Accuracy", metrics["accuracy"], 0)
-            model_monitor.log_scalar("Precision", metrics["precision"], 0)
-            model_monitor.log_scalar("Recall", metrics["recall"], 0)
+            model_monitor.log_scalar("Accuracy", metrics["accuracy"], step)
+            model_monitor.log_scalar("Precision", metrics["precision"], step)
+            model_monitor.log_scalar("Recall", metrics["recall"], step)
+
+            step += 1
 
             results.append(metrics)
     
