@@ -1,4 +1,5 @@
 # ccfd/data/dataset.py
+import os
 import pandas as pd
 
 def load_dataset(filepath: str) -> pd.DataFrame:
@@ -11,8 +12,17 @@ def load_dataset(filepath: str) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Loaded dataset.
     """
-    df = pd.read_csv(filepath)
-    return df
+    if not os.path.exists(filepath):
+        print(f"Error: File '{filepath}' not found.")
+        return None
+
+    try:
+        df = pd.read_csv(filepath)        
+        return df
+    except Exception as e:
+        print(f"Error loading file with pandas: {e}")
+        return None
+
 
 def show_data_info(df: pd.DataFrame) -> None:
     """

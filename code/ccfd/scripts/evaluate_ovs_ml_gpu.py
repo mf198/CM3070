@@ -2,10 +2,9 @@
 import cudf
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 from time import time
 from cuml.model_selection import train_test_split
-from ccfd.data.balancer import apply_smote, apply_adasyn, apply_svm_smote
+from ccfd.data.balancer import apply_smote, apply_adasyn, apply_svm_smote, apply_gan_oversampling
 from ccfd.models.cuml_classifiers import (
     train_cuml_random_forest, train_cuml_knn, train_cuml_logistic_regression,
     train_cuml_mbgd, train_cuml_xgboost, evaluate_cuml_model
@@ -38,9 +37,10 @@ def test_models_with_oversampling(filepath: str):
     df = load_dataset(filepath)
 
     oversampling_methods = {
+        "GAN": apply_gan_oversampling,
         "SMOTE": apply_smote,
         "ADASYN": apply_adasyn,
-        "SVM-SMOTE": apply_svm_smote
+        "SVM-SMOTE": apply_svm_smote       
     }
 
     models = {
@@ -105,4 +105,3 @@ if __name__ == "__main__":
     dataset_path = "ccfd/data/creditcard.csv"  # Change to your dataset path
     test_models_with_oversampling(dataset_path)
 
-    
