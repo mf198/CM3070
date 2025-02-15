@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from ccfd.data.balancer import apply_smote, apply_adasyn, apply_svm_smote
-from ccfd.models.classifiers import (
+from ccfd.models.classifiers_cpu import (
     train_random_forest, train_knn, train_logistic_regression,
     train_sgd, train_xgboost, evaluate_model
 )

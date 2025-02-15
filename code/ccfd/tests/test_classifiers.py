@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from ccfd.models.classifiers import (
+from ccfd.models.classifiers_cpu import (
     train_random_forest, train_knn, train_logistic_regression, train_sgd, train_xgboost, evaluate_model
 )
 

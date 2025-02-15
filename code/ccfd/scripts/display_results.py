@@ -11,11 +11,14 @@ def display_results_by_model_and_oversampling(filepath="cuml_oversampling_result
         # Load the CSV file using cuDF for GPU acceleration
         df = cudf.read_csv(filepath)
 
-        # ✅ Sort the results by Model and Oversampling Method
+        # Sort the results by Model and Oversampling Method
         sorted_df = df.sort_values(by=["Oversampling", "Model"])
 
+        # Reset index to remove any extra index column
+        sorted_df = sorted_df.reset_index(drop=True)        
+
         # Display the results as a cuDF DataFrame
-        print("\n📊 Results Grouped by Model and Oversampling Method (cuDF):")
+        print("\n📊 Results Grouped by Model and Oversampling Method:")
         print(sorted_df)
 
     except FileNotFoundError:
@@ -24,7 +27,7 @@ def display_results_by_model_and_oversampling(filepath="cuml_oversampling_result
 
 def display_results_by_model_ordered(filepath="cuml_oversampling_results.csv"):
     """
-    Reads the results from the CSV file and displays a table grouping by ML model,
+    Reads the ssults from the CSV file and displays a table grouping by ML model,
     ordering results by recall, precision, f1-score, and roc-auc using cuDF.
 
     Args:
@@ -42,20 +45,23 @@ def display_results_by_model_ordered(filepath="cuml_oversampling_results.csv"):
             print("❌ Error: None of the required metrics (recall, precision, f1_score, roc_auc) are found in the dataset.")
             return
 
-        # ✅ Sort results by recall, precision, f1-score, and roc-auc (in descending order)
+
+        # Sort results by recall, precision, f1-score, and roc-auc (in descending order)
         sorted_df = df.sort_values(by=available_metrics, ascending=False)
+
+        # Reset index to remove any extra index column
+        sorted_df = sorted_df.reset_index(drop=True)
 
         # Display the results as a cuDF DataFrame
         print("\n📊 Results Grouped by Model (Ordered by Recall, Precision, F1-score, ROC-AUC):")
-        print(sorted_df.to_pandas())  # Convert to pandas for better printing in console
+        print(sorted_df)
 
     except FileNotFoundError:
         print(f"❌ Error: {filepath} not found. Please check the file path.")
 
 
 if __name__ == "__main__":
-    #display_results_by_oversampling_cudf()
-    #display_results_by_algorithm_cudf()
+
     display_results_by_model_and_oversampling()    
     display_results_by_model_ordered()
 
