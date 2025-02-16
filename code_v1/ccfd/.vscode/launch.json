@@ -8,7 +8,7 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "scripts.test_models"
+            "module": "scripts.test_ovs_ml"
         }
     ]
 }

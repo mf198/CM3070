@@ -71,11 +71,11 @@ def test_models_with_oversampling(filepath: str, use_gpu: bool):
     df = load_dataset(filepath)
 
     oversampling_methods = {
-        #"GAN": apply_gan_oversampling,
-        #"WGAN": apply_wgan_oversampling,        
+        "GAN": apply_gan_oversampling,
+        "WGAN": apply_wgan_oversampling,        
         "SMOTE": apply_smote,
         #"SVM-SMOTE": apply_svm_smote,
-        #"ADASYN": apply_adasyn
+        "ADASYN": apply_adasyn
     }
 
     # Choose models based on GPU/CPU selection
@@ -84,26 +84,29 @@ def test_models_with_oversampling(filepath: str, use_gpu: bool):
             "LogisticRegression": train_logistic_regression_gpu,
             "RandomForest": train_random_forest_gpu,
             "kNN": train_knn_gpu,
-            #"SGD": train_mbgd_gpu,
+            "SGD": train_mbgd_gpu,
             "XGBoost": train_xgboost_gpu
         }
-        evaluate_model = evaluate_model_gpu        
+        evaluate_model = evaluate_model_gpu
     else:
         models = {
-            #"LogisticRegression": train_logistic_regression,
+            "LogisticRegression": train_logistic_regression,
             #"RandomForest": train_random_forest,
             #"kNN": train_knn,
             #"SGD": train_sgd,
-            "XGBoost": train_xgboost
+            #"XGBoost": train_xgboost
         }
         evaluate_model = evaluate_model_cpu
     
 
     results = []
 
-    # Initialize TensorBoard loggers
-    model_monitor = ModelTensorBoardLogger(log_dir="runs/model_monitor")
-    gpu_monitor = GPUTensorBoardLogger(log_dir="runs/gpu_monitor")
+    if use_gpu:
+        # Initialize TensorBoard gpu logger
+        gpu_monitor = GPUTensorBoardLogger(log_dir="runs/gpu_monitor")
+        
+    # Initialize TensorBoard model logger
+    model_monitor = ModelTensorBoardLogger(log_dir="runs/model_monitor")        
 
     # Clean the dataset     
     df = clean_dataset(df)
@@ -131,6 +134,7 @@ def test_models_with_oversampling(filepath: str, use_gpu: bool):
 
         # Oversampling method execution time
         ovs_time = round(timer.elapsed_final(), 2)
+        print(f"Oversampling time: {ovs_time}")
 
         # Extract balanced features and labels
         X_train_balanced = df_train_balanced.drop(columns=["Class"])
@@ -152,8 +156,9 @@ def test_models_with_oversampling(filepath: str, use_gpu: bool):
             metrics["Oversampling time"] = ovs_time
             metrics["Training Time (s)"] = round(timer.elapsed_final(), 2)
 
-            # Log GPU usage
-            gpu_monitor.log_gpu_stats(step)            
+            if use_gpu:
+                # Log GPU usage
+                gpu_monitor.log_gpu_stats(step)            
 
             # Log model metrics
             model_monitor.log_scalar("Accuracy",    metrics["accuracy"], step)
@@ -167,10 +172,14 @@ def test_models_with_oversampling(filepath: str, use_gpu: bool):
     
     # Save results
     results_df = pd.DataFrame(results)
-    results_df.to_csv("cuml_oversampling_results.csv", index=False)
+    if use_gpu:
+        results_df.to_csv("ovs_models_results_gpu.csv", index=False)
+    else: 
+        results_df.to_csv("ovs_models_results_cpu.csv", index=False)
 
     # Close loggers
-    gpu_monitor.close()   
+    if use_gpu:
+        gpu_monitor.close()   
     model_monitor.close()
 
 if __name__ == "__main__":
@@ -184,5 +193,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     use_gpu = args.device == "gpu"
-
+    
     test_models_with_oversampling(dataset_path, use_gpu)

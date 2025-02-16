@@ -2,7 +2,7 @@ import argparse
 import cudf
 import pandas as pd
 
-def display_results_by_model_and_oversampling(filepath="oversampling_results_gpu.csv", use_gpu=True):
+def display_results_by_model_and_oversampling(filepath="ovs_models_results_gpu.csv", use_gpu=True):
     """
     Reads the results from the CSV file and displays a table grouping by ML model and oversampling methods using cuDF.
 
@@ -30,7 +30,7 @@ def display_results_by_model_and_oversampling(filepath="oversampling_results_gpu
         print(f"❌ Error: {filepath} not found. Please check the file path.")
 
 
-def display_results_by_model_ordered(filepath="oversampling_results_gpu.csv", use_gpu=True):
+def display_results_by_model_ordered(filepath="ovs_models_results_gpu.csv", use_gpu=True):
     """
     Reads the ssults from the CSV file and displays a table grouping by ML model,
     ordering results by recall, precision, f1-score, and roc-auc using cuDF.
