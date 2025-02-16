@@ -1,6 +1,7 @@
 # ccfd/data/preprocess.py
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -16,8 +17,9 @@ def clean_dataset(df: pd.DataFrame) -> pd.DataFrame:
     # Dropping useless columns    
     df = df.drop(columns=['Time'])
 
-    # Apply scaling to the 'Amount' feature
-    df['Amount'] = StandardScaler().fit_transform(df[['Amount']])
-
-    # Additional cleaning logic can be added here...
+    pca = PCA(n_components=1)
+    df["Amount_PCA"] = pca.fit_transform(df[["Amount"]])
+    
     return df
+
+
