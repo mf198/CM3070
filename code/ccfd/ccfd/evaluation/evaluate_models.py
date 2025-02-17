@@ -167,7 +167,7 @@ def evaluate_model_gpu(
         y_pred = cudf.Series(y_pred)  # Convert NumPy to cuDF
 
     # Convert X_test to a numpy array which is compatible with all the models
-    if isinstance(y_pred, np.ndarray) is False:
+    if isinstance(X_test, np.ndarray) is False:
         X_test = X_test.to_numpy()
 
     # Handle `predict_proba()`

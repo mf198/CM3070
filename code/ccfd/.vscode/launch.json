@@ -8,7 +8,8 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "scripts.test_models"
+            "module": "scripts.test_models",
+            "args": ["--device", "gpu", "--threshold", "pr_curve", "--cost_fp", "2", "--cost_fn", "10"]
         }
     ]
 }
