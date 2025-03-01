@@ -32,8 +32,7 @@ X_test = scaler.transform(X_test)
 # ✅ Step 7: Train XGBoost Model
 xgb_model = xgb.XGBClassifier(
     scale_pos_weight=len(y_train_resampled) / sum(y_train_resampled),
-    eval_metric="logloss",
-    use_label_encoder=False
+    eval_metric="logloss"    
 )
 xgb_model.fit(X_train_resampled, y_train_resampled)
 

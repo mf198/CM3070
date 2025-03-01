@@ -165,9 +165,12 @@ def test_models_with_oversampling(filepath: str, use_gpu: bool, threshold_method
             # Train model
             model = model_function(X_train_balanced, y_train_balanced)
 
+            # Create the output filename based on the model used
+            filename = f"ccfd/results/curves_{model_name}_{oversampling_name}.csv"
+
             # Evaluate model
             metrics = evaluate_model(
-                model, X_test, y_test, threshold_method=threshold_method, cost_fp=cost_fp, cost_fn=cost_fn
+                model, X_test, y_test, threshold_method=threshold_method, cost_fp=cost_fp, cost_fn=cost_fn, save_curve=True, output_file=filename
             )
             metrics["Model"] = model_name
             metrics["Oversampling"] = oversampling_name

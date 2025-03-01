@@ -13,10 +13,11 @@ from sklearn.metrics import (
     accuracy_score,
 )
 from typing import Dict, Optional
-from ccfd.evaluation.curve_based_methods import find_best_threshold_cost, find_best_threshold_pr
+from ccfd.evaluation.threshold_analysis import compute_curve_values, find_best_threshold
+from ccfd.evaluation.save_curves import save_selected_curve
 
 
-def compute_metrics(y_test, y_pred, y_proba, use_gpu=False) -> Dict[str, float]:
+def compute_metrics(y_test, y_pred, y_proba, best_threshold, use_gpu=False) -> Dict[str, float]:
     """
     Computes and returns evaluation metrics for classification models.
 
@@ -38,6 +39,7 @@ def compute_metrics(y_test, y_pred, y_proba, use_gpu=False) -> Dict[str, float]:
             "f1_score": f1_score(y_test, y_pred),
             "precision": precision_score(y_test, y_pred),
             "recall": recall_score(y_test, y_pred),
+            "selected_threshold": best_threshold
         }
     else:
         metrics = {
@@ -46,11 +48,10 @@ def compute_metrics(y_test, y_pred, y_proba, use_gpu=False) -> Dict[str, float]:
             "f1_score": f1_score(y_test, y_pred),
             "precision": precision_score(y_test, y_pred),
             "recall": recall_score(y_test, y_pred),
+            "selected_threshold": best_threshold
         }
 
     return metrics
-
-
 ###
 
 
@@ -135,7 +136,7 @@ def evaluate_model_cpu(
     print(f"🔍 Using threshold: {best_threshold:.4f}")
 
     # Compute evaluation metrics (scikit-learn for CPU)
-    return compute_metrics(y_test, y_pred, y_proba, False)
+    return compute_metrics(y_test, y_pred, y_proba, best_threshold, False)
 
 
 def evaluate_model_gpu(
@@ -145,6 +146,8 @@ def evaluate_model_gpu(
     threshold_method: Optional[str] = "default",
     cost_fp: float = 1,
     cost_fn: float = 10,
+    save_curve: bool = False,
+    output_file: str = "ccfd/results/curves.csv"
 ) -> Dict[str, float]:
     """
     Evaluates the GPU-based model on the test set.
@@ -201,18 +204,17 @@ def evaluate_model_gpu(
 
     print(f"proba: {y_proba.min()}, {y_proba.max()}")
 
-    # Convert y_proba to a numpy array to use roc_curve
+    # Convert y_proba to NumPy format
     if isinstance(y_proba, np.ndarray) is False:
         y_proba = y_proba.to_numpy()
 
     y_pred = y_pred.to_pandas()
     y_test = y_test.to_pandas()
 
-    # Select threshold based on method
-    if threshold_method == "pr_curve":
-        best_threshold = find_best_threshold_pr(y_test, y_proba)
-    elif threshold_method == "cost_based":
-        best_threshold = find_best_threshold_cost(y_test, y_proba, cost_fp, cost_fn)
+    # Select the best threshold based on method
+    if threshold_method in ["pr_curve", "roc_curve", "cost_based"]:
+        metric1, metric2, thresholds = compute_curve_values(y_test, y_proba, curve_type=threshold_method, cost_fp=cost_fp, cost_fn=cost_fn)
+        best_threshold = find_best_threshold(metric1, metric2, thresholds, curve_type=threshold_method)
     else:
         best_threshold = 0.5  # Default threshold
 
@@ -221,8 +223,11 @@ def evaluate_model_gpu(
     # Convert probabilities to binary predictions using best threshold
     y_pred = (y_proba >= best_threshold).astype(int)
 
+    # Save selected curve if requested
+    if save_curve and threshold_method in ["pr_curve", "roc_curve", "cost_based"]:
+        save_selected_curve(y_test, y_proba, output_file, threshold_method, cost_fp, cost_fn)
+
+
     # Compute evaluation metrics (GPU)
-    return compute_metrics(y_test, y_pred, y_proba, True)
-
-
+    return compute_metrics(y_test, y_pred, y_proba, best_threshold, True)
 ###

@@ -12,7 +12,7 @@ def find_best_threshold_pr(y_test, y_proba):
     Returns:
         float: Optimal threshold for classification.
     """
-    precision, recall, thresholds = precision_recall_curve(y_test, y_proba)
+    precision, recall, thresholds = precision_recall_curve(y_test, y_proba)   
 
     # Find the threshold where Precision ≈ Recall
     best_idx = np.argmin(np.abs(precision - recall))

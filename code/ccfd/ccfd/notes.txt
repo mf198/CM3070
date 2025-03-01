@@ -1,3 +1,9 @@
 1. gan and wgan can use cuDF, the others algorithms can'the
 2. grap_... random... to fine tune hyperparameters
 3. split the dataset so that the percentage of frauds is balanced
+4. compare cost based methods, describe why they can be valuable for financial institutions (fine tuning the thresholds between fp and fn)
+5. plots to show data
+6. eliminate the slowest/worst performing algo/ovs methods
+7. create a DNN (autoencoder / variable autoencoder)
+8. compare results
+9. propose architecture (using 2/3 methods togheter and classify a TP only when the majority agrees)

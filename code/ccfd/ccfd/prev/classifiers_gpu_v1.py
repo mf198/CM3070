@@ -106,7 +106,7 @@ def train_xgboost_gpu(X_train, y_train) -> xgb.XGBClassifier:
         y_train = y_train.to_pandas()
 
     #model = xgb.XGBClassifier(eval_metric="logloss", device="cuda", random_state=18)
-    model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', scale_pos_weight=5, random_state=42, device="cuda")
+    model = xgb.XGBClassifier(eval_metric='logloss', scale_pos_weight=5, random_state=42, device="cuda")
     model.fit(X_train, y_train)  # XGBoost expects pandas format
     return model
 

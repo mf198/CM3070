@@ -104,47 +104,6 @@ def train_xgboost_gpu(X_train, y_train) -> xgb.XGBClassifier:
         y_train = y_train.to_pandas()
 
     #model = xgb.XGBClassifier(eval_metric="logloss", device="cuda", random_state=42)
-    model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', scale_pos_weight=5, random_state=42, device="cuda")
+    model = xgb.XGBClassifier(eval_metric='logloss', scale_pos_weight=5, random_state=42, device="cuda")
     model.fit(X_train, y_train)  # XGBoost expects pandas format
     return model
-
-
-# def plot_evaluation_curves(y_test: cudf.Series, y_proba: np.ndarray):
-#     """
-#     Plots ROC, Precision-Recall, and Cost curves.
-
-#     Args:
-#         y_test (pd.Series): True labels.
-#         y_proba (np.ndarray): Predicted probabilities.
-#     """
-#     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-
-#     # ROC Curve
-#     fpr, tpr, _ = roc_curve(y_test, y_proba)
-#     axes[0].plot(fpr, tpr, label="ROC Curve (AUC = {:.2f})".format(roc_auc_score(y_test, y_proba)))
-#     axes[0].plot([0, 1], [0, 1], 'r--')
-#     axes[0].set_xlabel("False Positive Rate")
-#     axes[0].set_ylabel("True Positive Rate")
-#     axes[0].set_title("ROC Curve")
-#     axes[0].legend()
-
-#     # Precision-Recall Curve
-#     precision, recall, _ = precision_recall_curve(y_test, y_proba)
-#     axes[1].plot(recall, precision, label="PR Curve")
-#     axes[1].set_xlabel("Recall")
-#     axes[1].set_ylabel("Precision")
-#     axes[1].set_title("Precision-Recall Curve")
-#     axes[1].legend()
-
-#     # Interpolating to Ensure Same Length or it will generate an error
-#     min_length = min(len(fpr), len(tpr))
-#     fpr, recall = fpr[:min_length], tpr[:min_length]
-
-#     # Cost Curve (FPR vs Recall, ensuring same length)
-#     axes[2].plot(fpr, recall, label="Cost Curve")
-#     axes[2].set_xlabel("False Positive Rate")
-#     axes[2].set_ylabel("Recall")
-#     axes[2].set_title("Cost Curve")
-#     axes[2].legend()
-
-#     plt.show()
