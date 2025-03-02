@@ -8,7 +8,8 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "scripts.test_ovs_ml"
+            "module": "scripts.test_models",
+            "args": ["--device", "gpu", "--threshold", "cost_based", "--cost_fp", "4", "--cost_fn", "10"]
         }
     ]
 }

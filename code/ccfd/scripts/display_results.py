@@ -1,6 +1,8 @@
+import argparse
 import cudf
+import pandas as pd
 
-def display_results_by_model_and_oversampling(filepath="cuml_oversampling_results.csv"):
+def display_results_by_model_and_oversampling(filepath="oversampling_results_gpu.csv", use_gpu=True):
     """
     Reads the results from the CSV file and displays a table grouping by ML model and oversampling methods using cuDF.
 
@@ -8,8 +10,11 @@ def display_results_by_model_and_oversampling(filepath="cuml_oversampling_result
         filepath (str): Path to the CSV file.
     """
     try:
-        # Load the CSV file using cuDF for GPU acceleration
-        df = cudf.read_csv(filepath)
+        if use_gpu:
+            # Load the CSV file using cuDF for GPU acceleration
+            df = cudf.read_csv(filepath)
+        else:
+            df = pd.read_csv(filepath)
 
         # Sort the results by Model and Oversampling Method
         sorted_df = df.sort_values(by=["Oversampling", "Model"])
@@ -25,7 +30,7 @@ def display_results_by_model_and_oversampling(filepath="cuml_oversampling_result
         print(f"❌ Error: {filepath} not found. Please check the file path.")
 
 
-def display_results_by_model_ordered(filepath="cuml_oversampling_results.csv"):
+def display_results_by_model_ordered(filepath="oversampling_results_gpu.csv", use_gpu=True):
     """
     Reads the ssults from the CSV file and displays a table grouping by ML model,
     ordering results by recall, precision, f1-score, and roc-auc using cuDF.
@@ -34,8 +39,11 @@ def display_results_by_model_ordered(filepath="cuml_oversampling_results.csv"):
         filepath (str): Path to the CSV file.
     """
     try:
-        # Load the CSV file using cuDF for GPU acceleration
-        df = cudf.read_csv(filepath)
+        if use_gpu:
+            # Load the CSV file using cuDF for GPU acceleration
+            df = cudf.read_csv(filepath)
+        else:
+            df = pd.read_csv(filepath)
 
         # Ensure the required metrics exist in the dataset
         required_metrics = ["recall", "precision", "f1_score", "roc_auc"]
@@ -44,7 +52,6 @@ def display_results_by_model_ordered(filepath="cuml_oversampling_results.csv"):
         if not available_metrics:
             print("❌ Error: None of the required metrics (recall, precision, f1_score, roc_auc) are found in the dataset.")
             return
-
 
         # Sort results by recall, precision, f1-score, and roc-auc (in descending order)
         sorted_df = df.sort_values(by=available_metrics, ascending=False)
@@ -62,7 +69,18 @@ def display_results_by_model_ordered(filepath="cuml_oversampling_results.csv"):
 
 if __name__ == "__main__":
 
-    display_results_by_model_and_oversampling()    
-    display_results_by_model_ordered()
+    # Allow user to choose between GPU(default) or CPU training    
+    parser = argparse.ArgumentParser(description="Run model training on GPU or CPU")
+    parser.add_argument("--device", choices=["gpu", "cpu"], default="gpu",
+                        help="Choose device for model training: gpu (default) or cpu")
+    args = parser.parse_args()
+    
+    use_gpu = args.device == "gpu"
 
-
+    if (use_gpu):
+        display_results_by_model_and_oversampling("ovs_models_results_gpu.csv", use_gpu=True)    
+        display_results_by_model_ordered("ovs_models_results_gpu.csv")
+    else:
+        display_results_by_model_and_oversampling("ovs_models_results_cpu.csv", use_gpu=False)
+        display_results_by_model_ordered("ovs_models_results_cpu.csv")
+###
