@@ -66,16 +66,24 @@ def objective_gan(trial, X_real, use_gpu=False):
         loss_G.backward()
         optimizer_G.step()
 
+        # Report intermediate loss for pruning
+        trial.report(loss_G.item(), epoch)
+
+        # Prune unpromising trials
+        if trial.should_prune():
+            raise optuna.TrialPruned()        
+
     return loss_G.item()  # Minimize Generator Loss
 
-def optimize_gan(X_real, use_gpu=False, n_trials=20):
+def optimize_gan(X_real, use_gpu=False, n_trials=20, n_jobs=-1):
     """
-    Runs Optuna optimization for GAN training.
+    Runs Optuna optimization for GAN training with pruning and parallel execution.
 
     Args:
-        X_real (DataFrame): Training dataset.
+        X_real (DataFrame, np.ndarray, or cudf.DataFrame): Training dataset.
         use_gpu (bool): Whether to use GPU.
         n_trials (int): Number of optimization trials.
+        n_jobs (int): Number of parallel jobs (-1 uses all available cores).
 
     Returns:
         optuna.Study: The completed study.
@@ -92,8 +100,9 @@ def optimize_gan(X_real, use_gpu=False, n_trials=20):
     else:  # Assume it's already a NumPy array or compatible format
         X_real = torch.tensor(X_real, dtype=torch.float32, device=device)
 
-    study = optuna.create_study(direction="minimize")
-    study.optimize(lambda trial: objective_gan(trial, X_real, use_gpu), n_trials=n_trials)
+    # Optimize using multiple parallel jobs
+    study = optuna.create_study(direction="minimize", pruner=optuna.pruners.MedianPruner())    
+    study.optimize(lambda trial: objective_gan(trial, X_real, use_gpu), n_trials=n_trials, n_jobs=n_jobs)
 
     print("Best Parameters for GAN:", study.best_params)
     return study.best_params

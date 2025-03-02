@@ -69,9 +69,16 @@ def objective_wgan(trial, X_real, use_gpu=False):
         loss_G.backward()
         optimizer_G.step()
 
+        # Report intermediate loss for pruning
+        trial.report(loss_G.item(), epoch)
+
+        # Prune unpromising trials
+        if trial.should_prune():
+            raise optuna.TrialPruned()      
+
     return loss_G.item()
 
-def optimize_wgan(X_real, use_gpu=False, n_trials=20):
+def optimize_wgan(X_real, use_gpu=False, n_trials=20, n_jobs=-1):
     """
     Runs Optuna optimization for WGAN training.
 
@@ -95,8 +102,9 @@ def optimize_wgan(X_real, use_gpu=False, n_trials=20):
     else:  # Assume it's already a NumPy array or compatible format
         X_real = torch.tensor(X_real, dtype=torch.float32, device=device)
 
-    study = optuna.create_study(direction="minimize")
-    study.optimize(lambda trial: objective_wgan(trial, X_real, use_gpu), n_trials=n_trials)
+    # Optimize using multiple parallel jobs
+    study = optuna.create_study(direction="minimize", pruner=optuna.pruners.MedianPruner())
+    study.optimize(lambda trial: objective_wgan(trial, X_real, use_gpu), n_trials=n_trials, n_jobs=n_jobs)    
 
     print("Best Parameters for WGAN:", study.best_params)
     return study.best_params

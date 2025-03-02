@@ -33,7 +33,7 @@ def prepare_data(df: pd.DataFrame, target_column: str = "Class", use_gpu: bool =
         return train_test_split(df, test_size=0.2, random_state=42)
 
 
-def optimize_model(filepath: str, use_gpu: bool, model: str, trials: int):
+def optimize_model(filepath: str, use_gpu: bool, model: str, trials: int, jobs: int = -1):
 
     print(f"\n📌 Loading dataset...")
     df = load_dataset(filepath, use_gpu)
@@ -47,13 +47,13 @@ def optimize_model(filepath: str, use_gpu: bool, model: str, trials: int):
 
     if args.model in ["gan", "both"]:
         print("\n🚀 Running GAN optimization...")
-        best_gan_params = optimize_gan(X_real, use_gpu=use_gpu, n_trials=args.trials)
+        best_gan_params = optimize_gan(X_real, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
         results["GAN"] = best_gan_params
         print(f"🎯 Best GAN Parameters: {best_gan_params}")
 
     if args.model in ["wgan", "both"]:
         print("\n🚀 Running WGAN optimization...")
-        best_wgan_params = optimize_wgan(X_real, use_gpu=use_gpu, n_trials=args.trials)
+        best_wgan_params = optimize_wgan(X_real, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
         results["WGAN"] = best_wgan_params
         print(f"🎯 Best WGAN Parameters: {best_wgan_params}")
 
@@ -91,6 +91,12 @@ if __name__ == "__main__":
         default="both",
         help="Select which model to optimize: 'gan', 'wgan', or 'both'",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=-1,
+        help="Select the number of parallel jobs (-1 = CPU count)",
+    )    
 
     args = parser.parse_args()
 
@@ -98,5 +104,6 @@ if __name__ == "__main__":
     use_gpu = args.device == "gpu"
     model = args.model  # "gan", "wgan"
     trials = args.trials
+    jobs = args.jobs
 
-    optimize_model(dataset_path, True, model, trials)
+    optimize_model(dataset_path, True, model, trials, jobs)
