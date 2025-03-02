@@ -5,11 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Module",
+            "name": "Python Debugger: test_models",
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.test_models",
             "args": ["--device", "gpu", "--threshold", "cost_based", "--cost_fp", "4", "--cost_fn", "10"]
-        }
+        },
+        {
+            "name": "Python Debugger: optimize_model",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.optimize_models",
+            "args": ["--device", "gpu", "--model", "gan", "--trials", "30"]
+        }        
     ]
 }
