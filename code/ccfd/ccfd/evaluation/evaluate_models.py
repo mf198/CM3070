@@ -202,8 +202,6 @@ def evaluate_model_gpu(
         )
         y_proba = y_pred  # Default to predictions
 
-    print(f"proba: {y_proba.min()}, {y_proba.max()}")
-
     # Convert y_proba to NumPy format
     if isinstance(y_proba, np.ndarray) is False:
         y_proba = y_proba.to_numpy()

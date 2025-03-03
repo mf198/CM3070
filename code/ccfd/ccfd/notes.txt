@@ -1,5 +1,5 @@
 1. gan and wgan can use cuDF, the others algorithms can'the
-2. grap_... random... to fine tune hyperparameters
+2. grid_search and random_search to fine tune hyperparameters
 3. split the dataset so that the percentage of frauds is balanced
 4. compare cost based methods, describe why they can be valuable for financial institutions (fine tuning the thresholds between fp and fn)
 5. plots to show data
@@ -7,3 +7,20 @@
 7. create a DNN (autoencoder / variable autoencoder)
 8. compare results
 9. propose architecture (using 2/3 methods togheter and classify a TP only when the majority agrees)
+
+10. explain why you uses StandardScaler instead of PCA for amount (data range very wide respect to other features)
+    check pca variance for each feature (maybe scaling is needed)
+    since I'm also testing ML algos, scaling is probably the best choice
+
+11. Five-Fold cross-validation?
+
+*** Use Stratified K-fold with optuns (to reduce computation) and when the best params are found,
+*** train the model with repeated stratified k-fold
+
+Best hyperparameters (100 trials 1 job):
+GAN
+500.0
+28.0
+32.0
+0.00013606341538538875
+2.2408404508198916e-05

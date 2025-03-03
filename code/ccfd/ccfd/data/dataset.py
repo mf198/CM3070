@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import cudf
 
-def load_dataset(filepath: str):
+def load_dataset_cpu(filepath: str):
     """
     Loads the dataset from a CSV file using pandas (CPU).
 
@@ -27,7 +27,7 @@ def load_dataset(filepath: str):
         return None
 
 
-def load_dataset2(filepath: str, use_gpu: bool = False):
+def load_dataset(filepath: str, use_gpu: bool = False):
     """
     Loads the dataset from a CSV file using either pandas (CPU) or cuDF (GPU).
 
@@ -53,28 +53,6 @@ def load_dataset2(filepath: str, use_gpu: bool = False):
         return df
     except Exception as e:
         print(f"❌ Error loading file: {e}")
-        return None
-
-
-def load_dataset_gpu(filepath: str) -> pd.DataFrame:
-    """
-    Loads the dataset from a CSV file.
-
-    Args:
-        filepath (str): Path to the CSV file.
-    
-    Returns:
-        cuDF.DataFrame: Loaded dataset.
-    """
-    if not os.path.exists(filepath):
-        print(f"Error: File '{filepath}' not found.")
-        return None
-
-    try:
-        df = cudf.read_csv(filepath)        
-        return df
-    except Exception as e:
-        print(f"Error loading file with cuDF: {e}")
         return None
 
 def show_data_info(df: pd.DataFrame) -> None:

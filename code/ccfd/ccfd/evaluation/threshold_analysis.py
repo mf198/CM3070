@@ -28,10 +28,6 @@ def compute_curve_values(y_test, y_proba, curve_type="pr_curve", cost_fp=1, cost
         precision, recall, thresholds = precision_recall_curve(y_test, y_proba)
         cost_metric = cost_fp * (1 - precision) + cost_fn * (1 - recall)
 
-        # Choose the threshold with the lowest cost
-        best_idx = np.argmin(cost_metric)
-        best_threshold = thresholds[best_idx]
-
         return cost_metric[:-1], thresholds, thresholds
 
     else:
