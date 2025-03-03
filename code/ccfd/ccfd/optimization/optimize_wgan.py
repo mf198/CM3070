@@ -104,6 +104,7 @@ def optimize_wgan(X_real, use_gpu=False, n_trials=20, n_jobs=-1):
 
     # Optimize using multiple parallel jobs
     study = optuna.create_study(direction="minimize", pruner=optuna.pruners.MedianPruner())
+    #study = optuna.create_study(direction="minimize")
     study.optimize(lambda trial: objective_wgan(trial, X_real, use_gpu), n_trials=n_trials, n_jobs=n_jobs)    
 
     print("Best Parameters for WGAN:", study.best_params)

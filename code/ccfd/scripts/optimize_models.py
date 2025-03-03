@@ -26,10 +26,13 @@ def prepare_data(df: pd.DataFrame, target_column: str = "Class", use_gpu: bool =
         print("🚀 Converting dataset to cuDF for GPU acceleration...")
         df = cudf.DataFrame(df)
 
+        print("📄 Using pandas for CPU-based train-test split...")
+
         # Use cuML's GPU-based train-test split
         return cuml_train_test_split(df, test_size=0.3, random_state=42)
     else:
         print("📄 Using pandas for CPU-based train-test split...")
+
         return train_test_split(df, test_size=0.2, random_state=42)
 
 
@@ -40,20 +43,25 @@ def optimize_model(filepath: str, use_gpu: bool, model: str, trials: int, jobs: 
 
     # Clean the dataset
     df = clean_dataset(df, use_gpu)
-    X_real = df.drop(columns=["Class"])
-    y_real = df["Class"]
+
+    # Split data before optimization
+    print("\n✂️ Splitting dataset into train and test sets...")
+    df_train, df_test = prepare_data(df, use_gpu=use_gpu)
+
+    X_test = df_train.drop(columns=["Class"])
+    y_test = df_train["Class"]
 
     results = {}
 
     if args.model in ["gan", "both"]:
         print("\n🚀 Running GAN optimization...")
-        best_gan_params = optimize_gan(X_real, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
+        best_gan_params = optimize_gan(X_test, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
         results["GAN"] = best_gan_params
         print(f"🎯 Best GAN Parameters: {best_gan_params}")
 
     if args.model in ["wgan", "both"]:
         print("\n🚀 Running WGAN optimization...")
-        best_wgan_params = optimize_wgan(X_real, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
+        best_wgan_params = optimize_wgan(X_test, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
         results["WGAN"] = best_wgan_params
         print(f"🎯 Best WGAN Parameters: {best_wgan_params}")
 
