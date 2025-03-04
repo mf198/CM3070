@@ -116,7 +116,7 @@ def objective_gan(trial, X_train, y_train, use_gpu=False):
     return np.mean(val_losses)
 
 
-def optimize_gan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1):
+def optimize_gan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1, save_path="ccfd/optimized_models/best_gan.pth"):
     """
     Runs Optuna optimization for GAN training with pruning and parallel execution.
 
@@ -154,5 +154,20 @@ def optimize_gan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1):
         n_jobs=n_jobs,
     )
 
-    print("Best Parameters for GAN:", study.best_params)
-    return study.best_params
+    print("✅ Best Parameters for GAN:", study.best_params)    
+
+    # Re-train best GAN with found parameters
+    best_params = study.best_params
+    best_generator = Generator(best_params["latent_dim"], X_train.shape[1]).to(device)
+    best_discriminator = Discriminator(X_train.shape[1]).to(device)
+
+    # Save models
+    torch.save({
+        "generator": best_generator.state_dict(),
+        "discriminator": best_discriminator.state_dict(),
+        "params": best_params
+    }, save_path)
+
+    print(f"🎯 Best GAN model saved at: {save_path}")
+
+    return best_params
