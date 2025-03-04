@@ -144,7 +144,7 @@ def test_models_with_oversampling(filepath: str, use_gpu: bool, threshold_method
         print(f"\n===============================================")
         print(f"🔄 Applying {oversampling_name} oversampling...")
         print(f"===============================================")
-        df_train_balanced = oversampling__function(df_train, use_gpu=use_gpu)
+        df_train_balanced = oversampling_function(df_train, use_gpu=use_gpu)
 
         # Oversampling method execution time
         ovs_time = round(timer.elapsed_final(), 2)

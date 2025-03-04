@@ -10,7 +10,7 @@ from ccfd.data.dataset import load_dataset
 from ccfd.data.preprocess import clean_dataset
 
 
-def prepare_data(df: pd.DataFrame, target_column: str = "Class", use_gpu: bool = False):
+def prepare_data(df, target_column: str = "Class", use_gpu: bool = False):
     """
     Splits the dataset into training and test sets. Converts to cuDF if GPU is enabled.
 
@@ -22,18 +22,26 @@ def prepare_data(df: pd.DataFrame, target_column: str = "Class", use_gpu: bool =
     Returns:
         Tuple: (df_train, df_test) as pandas or cuDF DataFrames/Series.
     """
+
     if use_gpu:
         print("🚀 Converting dataset to cuDF for GPU acceleration...")
-        df = cudf.DataFrame(df)
+        
+        if isinstance(df, pd.DataFrame):
+            df = cudf.from_pandas(df)
 
+        # Check that X and y are compatible with cuml
+        X = df.drop(columns=[target_column]).astype("float32")
+        y = df[target_column].astype("int32")
+        
+        # Stratify balances the fraud records in train and test data
+        return cuml_train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+    else:        
         print("📄 Using pandas for CPU-based train-test split...")
 
-        # Use cuML's GPU-based train-test split
-        return cuml_train_test_split(df, test_size=0.3, random_state=42)
-    else:
-        print("📄 Using pandas for CPU-based train-test split...")
+        X = df.drop(columns=[target_column])  # Features
+        y = df[target_column]  # Labels
 
-        return train_test_split(df, test_size=0.2, random_state=42)
+        return train_test_split(X, y, stratify=y, test_size=0.2, random_state=42)
 
 
 def optimize_model(filepath: str, use_gpu: bool, model: str, trials: int, jobs: int = -1):
@@ -46,22 +54,19 @@ def optimize_model(filepath: str, use_gpu: bool, model: str, trials: int, jobs: 
 
     # Split data before optimization
     print("\n✂️ Splitting dataset into train and test sets...")
-    df_train, df_test = prepare_data(df, use_gpu=use_gpu)
-
-    X_test = df_train.drop(columns=["Class"])
-    y_test = df_train["Class"]
+    X_train, X_test, y_train, y_test = prepare_data(df, use_gpu=use_gpu)
 
     results = {}
 
     if args.model in ["gan", "both"]:
         print("\n🚀 Running GAN optimization...")
-        best_gan_params = optimize_gan(X_test, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
+        best_gan_params = optimize_gan(X_train, y_train, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
         results["GAN"] = best_gan_params
         print(f"🎯 Best GAN Parameters: {best_gan_params}")
 
     if args.model in ["wgan", "both"]:
         print("\n🚀 Running WGAN optimization...")
-        best_wgan_params = optimize_wgan(X_test, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
+        best_wgan_params = optimize_wgan(X_train, y_train, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
         results["WGAN"] = best_wgan_params
         print(f"🎯 Best WGAN Parameters: {best_wgan_params}")
 
