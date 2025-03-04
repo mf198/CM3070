@@ -7,10 +7,10 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
-from functools import partial
 from ccfd.data.gan_oversampler import Generator, Discriminator
 
-def objective_gan(trial, X_train, y_train, use_gpu=False):    
+
+def objective_gan(trial, X_train, y_train, use_gpu=False):
     """
     Optuna objective function to optimize GAN hyperparameters.
 
@@ -34,21 +34,29 @@ def objective_gan(trial, X_train, y_train, use_gpu=False):
     input_dim = X_train.shape[1]
 
     # Initialize a unique step counter before training
-    global_step = 0  
+    global_step = 0
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     val_losses = []
 
     for train_idx, val_idx in skf.split(X_train.to_numpy(), y_train.to_numpy()):
-        X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]        
+        X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
 
         # Convert to GPU or CPU tensors
         if use_gpu:
-            X_train_fold = torch.tensor(X_train_fold.to_cupy(), dtype=torch.float32, device=device)
-            X_val_fold = torch.tensor(X_val_fold.to_cupy(), dtype=torch.float32, device=device)
+            X_train_fold = torch.tensor(
+                X_train_fold.to_cupy(), dtype=torch.float32, device=device
+            )
+            X_val_fold = torch.tensor(
+                X_val_fold.to_cupy(), dtype=torch.float32, device=device
+            )
         else:
-            X_train_fold = torch.tensor(X_train_fold.to_numpy(), dtype=torch.float32, device=device)
-            X_val_fold = torch.tensor(X_val_fold.to_numpy(), dtype=torch.float32, device=device)
+            X_train_fold = torch.tensor(
+                X_train_fold.to_numpy(), dtype=torch.float32, device=device
+            )
+            X_val_fold = torch.tensor(
+                X_val_fold.to_numpy(), dtype=torch.float32, device=device
+            )
 
         # Initialize models
         generator = Generator(latent_dim, input_dim).to(device)
@@ -65,11 +73,11 @@ def objective_gan(trial, X_train, y_train, use_gpu=False):
             real_labels = torch.ones((batch_size, 1), device=device)
             fake_labels = torch.zeros((batch_size, 1), device=device)
 
-            idx = torch.randint(0, X_train_fold.shape[0], (batch_size,), device=device)            
-            real_data = X_train_fold[idx] 
+            idx = torch.randint(0, X_train_fold.shape[0], (batch_size,), device=device)
+            real_data = X_train_fold[idx]
             real_output = discriminator(real_data)
             real_loss = loss_function(real_output, real_labels)
-            
+
             z = torch.randn((batch_size, latent_dim), device=device)
             fake_data = generator(z)
             fake_output = discriminator(fake_data.detach())
@@ -88,7 +96,7 @@ def objective_gan(trial, X_train, y_train, use_gpu=False):
             # Validation: Evaluate Generator on `X_val_fold`
             with torch.no_grad():
                 z_val = torch.randn((batch_size, latent_dim), device=device)
-                fake_val_data = generator(z_val)  
+                fake_val_data = generator(z_val)
                 fake_val_output = discriminator(fake_val_data)
                 G_val_loss = loss_function(fake_val_output, real_labels)
 
@@ -102,10 +110,11 @@ def objective_gan(trial, X_train, y_train, use_gpu=False):
             if trial.should_prune():
                 raise optuna.TrialPruned()
 
-            global_step += 1  # ✅ Increment step counter to ensure uniqueness across folds
-    
+            global_step += 1 # Increment step counter to ensure uniqueness across folds            
+
     # return the mean of the losses
-    return np.mean(val_losses)    
+    return np.mean(val_losses)
+
 
 def optimize_gan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1):
     """
@@ -128,18 +137,22 @@ def optimize_gan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1):
         X_train = X_train.astype("float32")
     elif isinstance(X_train, np.ndarray):
         X_train = torch.tensor(X_train, dtype=torch.float32, device=device)
-    
+
     if isinstance(y_train, cudf.Series):
         y_train = y_train.astype("int32")
     elif isinstance(y_train, np.ndarray):
         y_train = torch.tensor(y_train, dtype=torch.int32, device=device)
 
     # Optimize using multiple parallel jobs
-    study = optuna.create_study(direction="minimize", pruner=optuna.pruners.MedianPruner())
-    #study = optuna.create_study(direction="minimize")
-    study.optimize(lambda trial: objective_gan(trial, X_train, y_train, use_gpu), n_trials=n_trials, n_jobs=n_jobs)
+    study = optuna.create_study(
+        direction="minimize", pruner=optuna.pruners.MedianPruner()
+    )
+    # study = optuna.create_study(direction="minimize")
+    study.optimize(
+        lambda trial: objective_gan(trial, X_train, y_train, use_gpu),
+        n_trials=n_trials,
+        n_jobs=n_jobs,
+    )
 
     print("Best Parameters for GAN:", study.best_params)
     return study.best_params
-
-

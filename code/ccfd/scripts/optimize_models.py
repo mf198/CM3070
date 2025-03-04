@@ -66,7 +66,7 @@ def optimize_model(filepath: str, use_gpu: bool, model: str, trials: int, jobs: 
 
     if args.model in ["wgan", "both"]:
         print("\n🚀 Running WGAN optimization...")
-        best_wgan_params = optimize_wgan(X_train, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
+        best_wgan_params = optimize_wgan(X_train, y_train, use_gpu=use_gpu, n_trials=args.trials, n_jobs=jobs)
         results["WGAN"] = best_wgan_params
         print(f"🎯 Best WGAN Parameters: {best_wgan_params}")
 

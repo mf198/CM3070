@@ -1,19 +1,22 @@
 import cudf
 import optuna
 import torch
+import pandas as pd
 import cupy as cp
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from sklearn.model_selection import StratifiedKFold
 from ccfd.data.gan_oversampler import Generator, Critic
 
-def objective_wgan(trial, X_real, use_gpu=False):
+
+def objective_wgan(trial, X_train, y_train, use_gpu=False):
     """
     Optuna objective function to optimize WGAN hyperparameters.
 
     Args:
         trial (optuna.Trial): Optuna trial object.
-        X_real (numpy.ndarray or cupy.ndarray): Training dataset.
+        X_train (numpy.ndarray or cupy.ndarray): Training dataset.
         use_gpu (bool): Whether to use GPU.
 
     Returns:
@@ -24,13 +27,16 @@ def objective_wgan(trial, X_real, use_gpu=False):
     latent_dim = trial.suggest_int("latent_dim", 10, 100)
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
     lr_g = trial.suggest_float("lr_g", 1e-5, 1e-2, log=True)
-    lr_c = trial.suggest_float("lr_c", 1e-5, 1e-2, log=True)    
+    lr_c = trial.suggest_float("lr_c", 1e-5, 1e-2, log=True)
     weight_clip = trial.suggest_float("weight_clip", 0.001, 0.05, log=True)
     critic_iterations = trial.suggest_int("critic_iterations", 1, 10)
 
     device = torch.device("cuda" if use_gpu and torch.cuda.is_available() else "cpu")
 
-    input_dim = X_real.shape[1]
+    input_dim = X_train.shape[1]
+
+    # Initialize a unique step counter before training
+    global_step = 0
 
     # Initialize models
     generator = Generator(latent_dim, input_dim).to(device)
@@ -40,50 +46,88 @@ def objective_wgan(trial, X_real, use_gpu=False):
     optimizer_G = optim.RMSprop(generator.parameters(), lr=lr_g)
     optimizer_C = optim.RMSprop(critic.parameters(), lr=lr_c)
 
-    # Training Loop
-    for epoch in range(num_epochs):
-        for _ in range(critic_iterations):
-            optimizer_C.zero_grad()
-            real_idx = torch.randint(0, X_real.size(0), (batch_size,), device=device)
-            real_data = X_real[real_idx]
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    val_losses = []
 
-            real_output = critic(real_data)
-            loss_real = -torch.mean(real_output)
+    for train_idx, val_idx in skf.split(X_train.to_numpy(), y_train.to_numpy()):
+        X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
 
-            z = torch.randn((batch_size, latent_dim), device=device)
+        # Convert to GPU or CPU tensors
+        if use_gpu:
+            X_train_fold = torch.tensor(
+                X_train_fold.to_cupy(), dtype=torch.float32, device=device
+            )
+            X_val_fold = torch.tensor(
+                X_val_fold.to_cupy(), dtype=torch.float32, device=device
+            )
+        else:
+            X_train_fold = torch.tensor(
+                X_train_fold.to_numpy(), dtype=torch.float32, device=device
+            )
+            X_val_fold = torch.tensor(
+                X_val_fold.to_numpy(), dtype=torch.float32, device=device
+            )
+
+        # Training Loop
+        for epoch in range(num_epochs):
+            for _ in range(critic_iterations):
+                optimizer_C.zero_grad()
+
+                real_idx = torch.randint(
+                    0, X_train_fold.shape[0], (batch_size,), device=device
+                )
+                real_data = X_train_fold[real_idx]
+
+                real_output = critic(real_data)
+                loss_real = -torch.mean(real_output)
+
+                z = torch.randn((batch_size, latent_dim), device=device)
+                fake_data = generator(z)
+                fake_output = critic(fake_data.detach())
+                loss_fake = torch.mean(fake_output)
+
+                loss_C = loss_real + loss_fake
+                loss_C.backward()
+                optimizer_C.step()
+
+                for p in critic.parameters():
+                    p.data.clamp_(-weight_clip, weight_clip)
+
+            optimizer_G.zero_grad()
             fake_data = generator(z)
-            fake_output = critic(fake_data.detach())
-            loss_fake = torch.mean(fake_output)
+            fake_output = critic(fake_data)
+            loss_G = -torch.mean(fake_output)
+            loss_G.backward()
+            optimizer_G.step()
 
-            loss_C = loss_real + loss_fake
-            loss_C.backward()
-            optimizer_C.step()
+            # Validation Loss
+            with torch.no_grad():
+                z_val = torch.randn((batch_size, latent_dim), device=device)
+                fake_val_data = generator(z_val)
+                fake_val_output = critic(fake_val_data)
+                G_val_loss = -torch.mean(fake_val_output)  # Minimize Generator Score
 
-            for p in critic.parameters():
-                p.data.clamp_(-weight_clip, weight_clip)
+            # Append Validation Loss
+            val_losses.append(G_val_loss.item())
 
-        optimizer_G.zero_grad()
-        fake_data = generator(z)
-        fake_output = critic(fake_data)
-        loss_G = -torch.mean(fake_output)
-        loss_G.backward()
-        optimizer_G.step()
+            # Use global step for reporting
+            trial.report(G_val_loss.item(), global_step)
 
-        # Report intermediate loss for pruning
-        trial.report(loss_G.item(), epoch)
+            # Prune Trials
+            if trial.should_prune():
+                raise optuna.TrialPruned()
 
-        # Prune unpromising trials
-        if trial.should_prune():
-            raise optuna.TrialPruned()      
+            global_step += 1  # Increment step counter
 
-    return loss_G.item()
+    return np.mean(val_losses)  # ✅ Return Average Validation Loss
 
-def optimize_wgan(X_real, use_gpu=False, n_trials=20, n_jobs=-1):
+
+def optimize_wgan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1):
     """
     Runs Optuna optimization for WGAN training.
 
     Args:
-        X_real (numpy.ndarray or cupy.ndarray): Training dataset.
+        X_train (numpy.ndarray or cupy.ndarray): Training dataset.
         use_gpu (bool): Whether to use GPU.
         n_trials (int): Number of optimization trials.
 
@@ -92,20 +136,27 @@ def optimize_wgan(X_real, use_gpu=False, n_trials=20, n_jobs=-1):
     """
     device = torch.device("cuda" if use_gpu and torch.cuda.is_available() else "cpu")
 
-    # Convert the dataframe to a torch tensor
-    if isinstance(X_real, cudf.DataFrame):
-        X_real = torch.tensor(X_real.to_pandas().to_numpy(), dtype=torch.float32, device=device)
-    elif isinstance(X_real, pd.DataFrame):
-        X_real = torch.tensor(X_real.to_numpy(), dtype=torch.float32, device=device)
-    elif isinstance(X_real, cp.ndarray):  # If it's a CuPy array
-        X_real = torch.tensor(cp.asnumpy(X_real), dtype=torch.float32, device=device)
-    else:  # Assume it's already a NumPy array or compatible format
-        X_real = torch.tensor(X_real, dtype=torch.float32, device=device)
+    # Convert the dataset type
+    if isinstance(X_train, cudf.DataFrame):
+        X_train = X_train.astype("float32")
+    elif isinstance(X_train, np.ndarray):
+        X_train = torch.tensor(X_train, dtype=torch.float32, device=device)
+
+    if isinstance(y_train, cudf.Series):
+        y_train = y_train.astype("int32")
+    elif isinstance(y_train, np.ndarray):
+        y_train = torch.tensor(y_train, dtype=torch.int32, device=device)
 
     # Optimize using multiple parallel jobs
-    study = optuna.create_study(direction="minimize", pruner=optuna.pruners.MedianPruner())
-    #study = optuna.create_study(direction="minimize")
-    study.optimize(lambda trial: objective_wgan(trial, X_real, use_gpu), n_trials=n_trials, n_jobs=n_jobs)    
+    study = optuna.create_study(
+        direction="minimize", pruner=optuna.pruners.MedianPruner()
+    )
+    # study = optuna.create_study(direction="minimize")
+    study.optimize(
+        lambda trial: objective_wgan(trial, X_train, y_train, use_gpu),
+        n_trials=n_trials,
+        n_jobs=n_jobs,
+    )
 
     print("Best Parameters for WGAN:", study.best_params)
     return study.best_params
