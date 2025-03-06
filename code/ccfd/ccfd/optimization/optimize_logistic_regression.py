@@ -10,6 +10,11 @@ from cuml.metrics import roc_auc_score as cu_roc_auc_score
 from sklearn.metrics import roc_auc_score as sk_roc_auc_score
 
 
+def sigmoid(x):
+    """Computes sigmoid activation to map logits to probabilities."""
+    return 1 / (1 + np.exp(-x))
+
+
 def objective_logistic_regression(trial, X_train, y_train, use_gpu=True):
     """
     Optuna objective function to optimize Logistic Regression.
@@ -23,10 +28,15 @@ def objective_logistic_regression(trial, X_train, y_train, use_gpu=True):
     Returns:
         float: Average AUC score across K-Folds.
     """
+    if use_gpu:
+        solver = "qn"  # cuML only supports 'qn'
+    else:
+        solver = trial.suggest_categorical("solver", ["lbfgs", "liblinear", "saga", "sag", "newton-cg", "newton-cholesky"])
+
     params = {
         "penalty": "l2",
         "C": trial.suggest_float("C", 0.01, 10.0, log=True),
-        "solver": trial.suggest_categorical("solver", ["qn", "lbfgs"]),
+        "solver": solver,
         "max_iter": trial.suggest_int("max_iter", 100, 500, step=100),
     }
 
@@ -35,20 +45,40 @@ def objective_logistic_regression(trial, X_train, y_train, use_gpu=True):
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     auc_scores = []
 
-    for train_idx, val_idx in skf.split(X_train.to_pandas(), y_train.to_pandas()):
-        X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
-        y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
+    # Ensure correct format for CPU/GPU mode
+    if use_gpu:
+        X_train_np, y_train_np = X_train.to_pandas().to_numpy(), y_train.to_pandas().to_numpy()
+    else:
+        X_train_np, y_train_np = X_train.values, y_train.values  # Direct conversion for pandas
 
-        # Convert to NumPy for CPU models
-        if not use_gpu:
-            X_train_fold, X_val_fold = X_train_fold.to_numpy(), X_val_fold.to_numpy()
-            y_train_fold, y_val_fold = y_train_fold.to_numpy(), y_train_fold.to_numpy()
+    for train_idx, val_idx in skf.split(X_train_np, y_train_np):
+        if use_gpu:
+            X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
+            y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
+        else:
+            X_train_fold, X_val_fold = X_train_np[train_idx], X_train_np[val_idx]
+            y_train_fold, y_val_fold = y_train_np[train_idx], y_train_np[val_idx]
 
         model.fit(X_train_fold, y_train_fold)
-        y_proba = model.predict_proba(X_val_fold)
 
-        # Extract probabilities for positive class
-        y_proba = y_proba[:, 1] if use_gpu else y_proba[:, 1]
+        # Handle cuML predict_proba() issues
+        try:
+            y_proba = model.predict_proba(X_val_fold)
+            
+            # Check if y_proba is empty or has incorrect shape
+            if y_proba.shape[0] == 0 or len(y_proba.shape) == 1:
+                raise ValueError("predict_proba() returned an empty or incorrectly shaped array")
+
+            # Ensure it has two columns (probabilities for both classes)
+            if y_proba.shape[1] == 2:
+                y_proba = y_proba[:, 1]  # Extract positive class probability
+            else:
+                raise ValueError("predict_proba() did not return two columns")
+
+        except (AttributeError, ValueError):
+            # Fallback: Use predict() and apply sigmoid activation
+            y_proba = model.predict(X_val_fold).astype(float)
+            y_proba = sigmoid(y_proba)  # Convert logits to probabilities
 
         # Compute AUC score using the correct metric
         auc = cu_roc_auc_score(y_val_fold, y_proba) if use_gpu else sk_roc_auc_score(y_val_fold, y_proba)
@@ -78,7 +108,12 @@ def optimize_logistic_regression(X_train, y_train, n_trials=50, use_gpu=True, sa
 
     # Retrain the best model using the full dataset
     best_model = cuLogisticRegression(**study.best_params) if use_gpu else skLogisticRegression(**study.best_params)
-    best_model.fit(X_train, y_train)
+
+    # Ensure correct data format before fitting
+    if use_gpu:
+        best_model.fit(X_train, y_train)  # Keep cuDF format
+    else:
+        best_model.fit(X_train.values, y_train.values)  # Convert pandas to NumPy
 
     # Save the best model
     joblib.dump(best_model, save_path)
