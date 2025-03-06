@@ -1,13 +1,16 @@
-# ccfd/models/cuml_classifiers.py
+import optuna
+import torch
 import cudf
-import cupy as cp
+import joblib
+import xgboost as xgb
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import StratifiedKFold
+from cuml.linear_model import LogisticRegression, MBSGDClassifier
 from cuml.ensemble import RandomForestClassifier
 from cuml.neighbors import KNeighborsClassifier
-from cuml.linear_model import LogisticRegression, MBSGDClassifier
-import xgboost as xgb
-import matplotlib.pyplot as plt
+from cuml.metrics import accuracy_score, roc_auc_score
+from optuna.integration import PyTorchLightningPruningCallback
 
 
 def train_random_forest_gpu(X_train: cudf.DataFrame, y_train: cudf.Series) -> RandomForestClassifier:
@@ -25,7 +28,6 @@ def train_random_forest_gpu(X_train: cudf.DataFrame, y_train: cudf.Series) -> Ra
     X_train = X_train.astype("float32")
     y_train = y_train.astype("float32")
 
-    #model = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
     model = RandomForestClassifier(n_estimators=200, max_depth=15, bootstrap=True, n_bins=128)
     model.fit(X_train, y_train)
 
@@ -102,8 +104,7 @@ def train_xgboost_gpu(X_train, y_train) -> xgb.XGBClassifier:
         X_train = X_train.to_pandas()
     if isinstance(y_train, cudf.Series):
         y_train = y_train.to_pandas()
-
-    #model = xgb.XGBClassifier(eval_metric="logloss", device="cuda", random_state=42)
+    
     model = xgb.XGBClassifier(eval_metric='logloss', scale_pos_weight=5, random_state=42, device="cuda")
     model.fit(X_train, y_train)  # XGBoost expects pandas format
     return model

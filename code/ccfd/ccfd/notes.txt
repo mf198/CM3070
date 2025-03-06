@@ -19,7 +19,7 @@ V 11. Five-Fold cross-validation?
 *** Use Stratified K-fold with optuns (to reduce computation) and when the best params are found,
 *** train the model with repeated stratified k-fold
 
-Best hyperparameters (50 trials 4 job):
+Best hyperparameters (50 trials 4 job): 14m
 GAN
 500.0
 28.0
