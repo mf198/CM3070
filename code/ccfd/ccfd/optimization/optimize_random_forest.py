@@ -23,31 +23,53 @@ def objective_random_forest(trial, X_train, y_train, use_gpu=True):
     Returns:
         float: Average AUC score across K-Folds.
     """
+    # Define parameters separately for GPU and CPU
     params = {
         "n_estimators": trial.suggest_int("n_estimators", 50, 500, step=50),
         "max_depth": trial.suggest_int("max_depth", 5, 50, step=5),
-        "n_bins": trial.suggest_int("n_bins", 32, 256, step=32),
     }
+
+    if use_gpu:
+        params["n_bins"] = trial.suggest_int("n_bins", 32, 256, step=32)  # Only for cuML
 
     model = cuRandomForestClassifier(**params) if use_gpu else skRandomForestClassifier(**params)
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     auc_scores = []
 
-    for train_idx, val_idx in skf.split(X_train.to_pandas(), y_train.to_pandas()):
-        X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
-        y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
+    # Ensure correct format for CPU/GPU mode
+    if use_gpu:
+        X_train_np, y_train_np = X_train.to_pandas().to_numpy(), y_train.to_pandas().to_numpy()
+    else:
+        X_train_np, y_train_np = X_train.values, y_train.values  # Direct conversion for pandas
 
-        # Convert to NumPy if using CPU
-        if not use_gpu:
-            X_train_fold, X_val_fold = X_train_fold.to_numpy(), X_val_fold.to_numpy()
-            y_train_fold, y_val_fold = y_train_fold.to_numpy(), y_train_fold.to_numpy()
+    for train_idx, val_idx in skf.split(X_train_np, y_train_np):
+        if use_gpu:
+            X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
+            y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
+        else:
+            X_train_fold, X_val_fold = X_train_np[train_idx], X_train_np[val_idx]
+            y_train_fold, y_val_fold = y_train_np[train_idx], y_train_np[val_idx]
 
         model.fit(X_train_fold, y_train_fold)
-        y_proba = model.predict_proba(X_val_fold)
 
-        # Extract probabilities for positive class
-        y_proba = y_proba[:, 1]
+        # Handle cuML predict_proba() issues
+        try:
+            y_proba = model.predict_proba(X_val_fold)
+
+            # Check if y_proba is empty or incorrectly shaped
+            if y_proba.shape[0] == 0 or len(y_proba.shape) == 1:
+                raise ValueError("predict_proba() returned an empty or incorrectly shaped array")
+
+            # Ensure two columns (probabilities for both classes)
+            if y_proba.shape[1] == 2:
+                y_proba = y_proba[:, 1]  # Extract positive class probability
+            else:
+                raise ValueError("predict_proba() did not return two columns")
+
+        except (AttributeError, ValueError):
+            # Fallback: Use predict() and map outputs to probabilities
+            y_proba = model.predict(X_val_fold).astype(float)
 
         # Compute AUC score using the correct metric
         auc = cu_roc_auc_score(y_val_fold, y_proba) if use_gpu else sk_roc_auc_score(y_val_fold, y_proba)
@@ -76,7 +98,12 @@ def optimize_random_forest(X_train, y_train, n_trials=50, use_gpu=True, save_pat
     print("🔥 Best Random Forest Parameters:", study.best_params)
 
     # Retrain the best model using the full dataset
-    best_model = cuRandomForestClassifier(**study.best_params) if use_gpu else skRandomForestClassifier(**study.best_params)
+    if use_gpu:
+        best_model = cuRandomForestClassifier(**study.best_params)
+    else:
+        best_params = {k: v for k, v in study.best_params.items() if k != "n_bins"}  # Remove 'n_bins' for CPU
+        best_model = skRandomForestClassifier(**best_params)
+
     best_model.fit(X_train, y_train)
 
     # Save the best model
