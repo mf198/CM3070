@@ -1,3 +1,0 @@
-1. gan and wgan can use cuDF, the others algorithms can'the
-2. grap_... random... to fine tune hyperparameters
-3. split the dataset so that the percentage of frauds is balanced

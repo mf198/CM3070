@@ -4,6 +4,7 @@ import numpy as np
 from cuml.metrics import roc_auc_score as roc_auc_score_gpu
 from cuml.metrics import accuracy_score as accuracy_score_gpu
 from sklearn.metrics import (
+    average_precision_score,
     precision_score,
     recall_score,
     f1_score,
@@ -16,8 +17,9 @@ from typing import Dict, Optional
 from ccfd.evaluation.threshold_analysis import compute_curve_values, find_best_threshold
 from ccfd.evaluation.save_curves import save_selected_curve
 
-
-def compute_metrics(y_test, y_pred, y_proba, best_threshold, use_gpu=False) -> Dict[str, float]:
+def compute_metrics(
+    y_test, y_pred, y_proba, best_threshold, use_gpu=False
+) -> Dict[str, float]:
     """
     Computes and returns evaluation metrics for classification models.
 
@@ -39,7 +41,7 @@ def compute_metrics(y_test, y_pred, y_proba, best_threshold, use_gpu=False) -> D
             "f1_score": f1_score(y_test, y_pred),
             "precision": precision_score(y_test, y_pred),
             "recall": recall_score(y_test, y_pred),
-            "selected_threshold": best_threshold
+            "selected_threshold": best_threshold,
         }
     else:
         metrics = {
@@ -48,10 +50,12 @@ def compute_metrics(y_test, y_pred, y_proba, best_threshold, use_gpu=False) -> D
             "f1_score": f1_score(y_test, y_pred),
             "precision": precision_score(y_test, y_pred),
             "recall": recall_score(y_test, y_pred),
-            "selected_threshold": best_threshold
+            "selected_threshold": best_threshold,
         }
 
     return metrics
+
+
 ###
 
 
@@ -147,7 +151,7 @@ def evaluate_model_gpu(
     cost_fp: float = 1,
     cost_fn: float = 10,
     save_curve: bool = False,
-    output_file: str = "ccfd/results/curves.csv"
+    output_file: str = "ccfd/results/curves.csv",
 ) -> Dict[str, float]:
     """
     Evaluates the GPU-based model on the test set.
@@ -211,8 +215,16 @@ def evaluate_model_gpu(
 
     # Select the best threshold based on method
     if threshold_method in ["pr_curve", "roc_curve", "cost_based"]:
-        metric1, metric2, thresholds = compute_curve_values(y_test, y_proba, curve_type=threshold_method, cost_fp=cost_fp, cost_fn=cost_fn)
-        best_threshold = find_best_threshold(metric1, metric2, thresholds, curve_type=threshold_method)
+        metric1, metric2, thresholds = compute_curve_values(
+            y_test,
+            y_proba,
+            curve_type=threshold_method,
+            cost_fp=cost_fp,
+            cost_fn=cost_fn,
+        )
+        best_threshold = find_best_threshold(
+            metric1, metric2, thresholds, curve_type=threshold_method
+        )
     else:
         best_threshold = 0.5  # Default threshold
 
@@ -223,9 +235,59 @@ def evaluate_model_gpu(
 
     # Save selected curve if requested
     if save_curve and threshold_method in ["pr_curve", "roc_curve", "cost_based"]:
-        save_selected_curve(y_test, y_proba, output_file, threshold_method, cost_fp, cost_fn)
-
+        save_selected_curve(
+            y_test, y_proba, output_file, threshold_method, cost_fp, cost_fn
+        )
 
     # Compute evaluation metrics (GPU)
     return compute_metrics(y_test, y_pred, y_proba, best_threshold, True)
+
+
 ###
+
+def evaluate_model(y_true, y_pred, train_params):
+    """
+    Evaluates model performance based on the chosen metric.
+
+    Args:
+        y_true (np.ndarray): True labels (0 = legitimate transaction, 1 = fraud).
+        y_pred (np.ndarray): Model predicted scores or probabilities.
+        train_params (dict): Dictionary containing training parameters, including:
+            - "metric" (str): Evaluation metric to use. Options: ["pr_auc", "f1", "precision", "cost"].
+            - "cost_fp" (float, optional): Cost of a false positive (legitimate transaction flagged as fraud).
+            - "cost_fn" (float, optional): Cost of a false negative (fraudulent transaction not detected).
+              Only required if "metric" is set to "cost".
+
+    Returns:
+        float: The computed metric value based on the selected evaluation method.
+    """
+
+    # Ensure y_true and y_pred are NumPy arrays (in case they are lists)
+    y_true = np.asarray(y_true, dtype=np.int32)  # Ensure labels are integer
+    y_pred = np.asarray(y_pred, dtype=np.float32)  # Ensure probabilities are float
+
+    # Convert probabilities to binary predictions (threshold = 0.5)
+    y_binary = (y_pred >= 0.5).astype(int)
+
+    metric = train_params["metric"]    
+
+    if metric == "pr_auc":
+        return average_precision_score(y_true, y_pred)  # PR AUC needs probabilities
+
+    elif metric == "f1":
+        return f1_score(y_true, y_binary)  # F1-score uses binary labels
+
+    elif metric == "precision":
+        return precision_score(y_true, y_binary)  # Precision uses binary labels
+
+    elif metric == "cost":
+        cost_fp = train_params["cost_fp"]
+        cost_fn = train_params["cost_fn"]
+
+        # Compute cost function based on false positives & false negatives
+        false_positives = np.sum((y_binary == 1) & (y_true == 0))  # False positives
+        false_negatives = np.sum((y_binary == 0) & (y_true == 1))  # False negatives
+        return (false_positives * cost_fp) + (false_negatives * cost_fn)
+
+    else:
+        raise ValueError("Invalid metric. Choose from ['pr_auc', 'f1', 'precision', 'cost'].")

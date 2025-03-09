@@ -6,6 +6,7 @@ import cupy as cp
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import os
 from sklearn.model_selection import StratifiedKFold
 from ccfd.data.gan_oversampler import Generator, Discriminator
 
@@ -115,24 +116,39 @@ def objective_gan(trial, X_train, y_train, use_gpu=False):
     # return the mean of the losses
     return np.mean(val_losses)
 
-
-def optimize_gan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1, save_path="ccfd/optimized_models/best_gan.pth"):
+def optimize_gan(X_train, y_train, train_params):
     """
     Runs Optuna optimization for GAN training with pruning and parallel execution.
 
     Args:
-        X_train (training dataset without the labels
-        y_train (data labels)
-        use_gpu (bool): Whether to use GPU.
-        n_trials (int): Number of optimization trials.
-        n_jobs (int): Number of parallel jobs (-1 uses all available cores).
+        X_train (DataFrame, NumPy array, or cuDF DataFrame): Training dataset without labels.
+        y_train (Series, NumPy array, or cuDF Series): Training labels.
+        train_params (dict): Dictionary containing:
+            - "device" (str): Device to use (GPU or CPU)
+            - "trials" (int): Number of optimization trials.
+            - "jobs" (int): Number of parallel jobs.
+            - "output_folder" (str): Directory where the model will be saved.
 
     Returns:
-        optuna.Study: The completed study.
+        dict: Best hyperparameters from Optuna.
     """
+
+    # Extract parameters
+    use_gpu = train_params["device"] == "gpu"
+    n_trials = train_params["trials"]
+    n_jobs = train_params["jobs"]
+    output_folder = train_params["output_folder"]
+
+    # Ensure output directory exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Define model save path dynamically
+    save_path = os.path.join(output_folder, "pt_gan.pth")
+
+    # Set device
     device = torch.device("cuda" if use_gpu and torch.cuda.is_available() else "cpu")
 
-    # Convert the dataset type
+    # Convert dataset to the correct format
     if isinstance(X_train, cudf.DataFrame):
         X_train = X_train.astype("float32")
     elif isinstance(X_train, np.ndarray):
@@ -147,21 +163,20 @@ def optimize_gan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1, save_p
     study = optuna.create_study(
         direction="minimize", pruner=optuna.pruners.MedianPruner()
     )
-    # study = optuna.create_study(direction="minimize")
     study.optimize(
         lambda trial: objective_gan(trial, X_train, y_train, use_gpu),
         n_trials=n_trials,
         n_jobs=n_jobs,
     )
 
-    print("✅ Best Parameters for GAN:", study.best_params)    
+    print("✅ Best Parameters for GAN:", study.best_params)
 
     # Re-train best GAN with found parameters
     best_params = study.best_params
     best_generator = Generator(best_params["latent_dim"], X_train.shape[1]).to(device)
     best_discriminator = Discriminator(X_train.shape[1]).to(device)
 
-    # Save models
+    # Save best model
     torch.save({
         "generator": best_generator.state_dict(),
         "discriminator": best_discriminator.state_dict(),
@@ -171,3 +186,4 @@ def optimize_gan(X_train, y_train, use_gpu=False, n_trials=20, n_jobs=-1, save_p
     print(f"🎯 Best GAN model saved at: {save_path}")
 
     return best_params
+
