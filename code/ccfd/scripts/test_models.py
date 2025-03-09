@@ -33,7 +33,6 @@ from ccfd.utils.gpu_monitor import track_gpu_during_training
 from ccfd.utils.tensorboard_model_logger import ModelTensorBoardLogger
 from ccfd.utils.tensorboard_gpu_logger import GPUTensorBoardLogger
 from cuml.model_selection import train_test_split as cuml_train_test_split
-from ccfd.data.balancer import apply_smote, apply_adasyn, apply_svm_smote
 from ccfd.models.classifiers_cpu import (
     train_random_forest,
     train_knn,
@@ -70,7 +69,9 @@ def prepare_data(df, target_column: str = "Class", use_gpu: bool = False):
 ###
 
 
-def test_models_with_oversampling(filepath: str, use_gpu: bool, threshold_method: str, cost_fp: int, cost_fn: int):
+def test_models_with_oversampling(
+    filepath: str, use_gpu: bool, threshold_method: str, cost_fp: int, cost_fn: int
+):
     """
     Tests all models (GPU-accelerated cuML or CPU-based scikit-learn) with all oversampling methods.
 
@@ -170,7 +171,14 @@ def test_models_with_oversampling(filepath: str, use_gpu: bool, threshold_method
 
             # Evaluate model
             metrics = evaluate_model(
-                model, X_test, y_test, threshold_method=threshold_method, cost_fp=cost_fp, cost_fn=cost_fn, save_curve=True, output_file=filename
+                model,
+                X_test,
+                y_test,
+                threshold_method=threshold_method,
+                cost_fp=cost_fp,
+                cost_fn=cost_fn,
+                save_curve=True,
+                output_file=filename,
             )
             metrics["Model"] = model_name
             metrics["Oversampling"] = oversampling_name
@@ -250,4 +258,6 @@ if __name__ == "__main__":
     cost_fp = args.cost_fp
     cost_fn = args.cost_fn
 
-    test_models_with_oversampling(dataset_path, use_gpu, threshold_method, cost_fp, cost_fn)
+    test_models_with_oversampling(
+        dataset_path, use_gpu, threshold_method, cost_fp, cost_fn
+    )

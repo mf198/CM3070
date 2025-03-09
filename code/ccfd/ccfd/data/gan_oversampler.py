@@ -8,10 +8,11 @@ import numpy as np
 
 class Generator(nn.Module):
     """ Takes random noise (latent space) and generates samples"""
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, latent_dim, output_dim):
         super(Generator, self).__init__()
+        self.latent_dim = latent_dim
         self.model = nn.Sequential(
-            nn.Linear(input_dim, 128),
+            nn.Linear(latent_dim, 128),
             nn.ReLU(),
             nn.Linear(128, 256),
             nn.ReLU(),
@@ -26,6 +27,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module): # Used for 'vanilla' GAN
     def __init__(self, input_dim):
         super(Discriminator, self).__init__()
+        self.input_dim = input_dim
         self.model = nn.Sequential(
             nn.Linear(input_dim, 256),
             nn.ReLU(),
@@ -203,84 +205,38 @@ def train_wgan(X_real, num_epochs=1000, latent_dim=10, batch_size=64,
 
     return generator
 
-def generate_synthetic_samples(generator, num_samples=1000, latent_dim=10, use_gpu=False):
+def generate_synthetic_samples(generator, num_samples=1000, use_gpu=False):
     """
     Uses a trained GAN generator to create synthetic samples on GPU or CPU.
 
     Args:
         generator (torch.nn.Module): The trained generator model.
         num_samples (int): Number of synthetic samples to generate.
-        latent_dim (int): Size of noise input.
         use_gpu (bool): If True, generates samples on GPU, otherwise on CPU.
 
     Returns:
-        numpy.ndarray: Generated synthetic samples.
+        numpy.ndarray or cupy.ndarray: Generated synthetic samples (optimized for GPU or CPU).
     """
-    # Set the device based on user choice
+    # Set the device
     device = torch.device("cuda" if use_gpu and torch.cuda.is_available() else "cpu")
 
     # Ensure the generator is on the correct device
     generator = generator.to(device)
 
-    # Generate random noise (z) on the same device
+    # Get the correct latent_dim dynamically
+    try:
+        latent_dim = generator.latent_dim  # Assuming Generator class has `self.latent_dim`
+    except AttributeError:
+        raise ValueError("❌ Generator model does not have `latent_dim` attribute. Please ensure it's correctly set.")
+
+    # Generate random noise (z) on the same device as the generator
     z = torch.randn((num_samples, latent_dim), device=device)
 
-    # Generate synthetic data and move to CPU before converting to NumPy
-    synthetic_data = generator(z).detach().cpu().numpy()
+    # Generate synthetic data
+    synthetic_data = generator(z).detach()
 
-    return synthetic_data
-
-
-# def generate_optimized_synthetic_samples(X_real, model_type="GAN", num_samples=10000, use_gpu=False):
-#     """
-#     Uses the optimized GAN/WGAN to generate synthetic samples.
-
-#     Args:
-#         X_real (numpy.ndarray or cupy.ndarray): The real dataset (used for training).
-#         model_type (str): Choose between "GAN" or "WGAN".
-#         num_samples (int): Number of synthetic samples to generate.
-#         use_gpu (bool): If True, trains and generates on GPU.
-
-#     Returns:
-#         numpy.ndarray: Generated synthetic samples.
-#     """
-#     print(f"🔍 Optimizing {model_type} hyperparameters with Optuna...")
-    
-#     if model_type == "GAN":
-#         best_params = optimize_gan(X_real, use_gpu=use_gpu, n_trials=30)
-#         print(f"🎯 Best GAN Params: {best_params}")
-
-#         # Train the optimized GAN
-#         print("🚀 Training GAN with best hyperparameters...")
-#         generator = train_gan(
-#             X_real,
-#             num_epochs=500,
-#             latent_dim=best_params["latent_dim"],
-#             batch_size=best_params["batch_size"],
-#             use_gpu=use_gpu
-#         )
-
-#     elif model_type == "WGAN":
-#         best_params = optimize_wgan(X_real, use_gpu=use_gpu, n_trials=30)
-#         print(f"🎯 Best WGAN Params: {best_params}")
-
-#         # Train the optimized WGAN
-#         print("🚀 Training WGAN with best hyperparameters...")
-#         generator = train_wgan(
-#             X_real,
-#             num_epochs=500,
-#             latent_dim=best_params["latent_dim"],
-#             batch_size=best_params["batch_size"],
-#             critic_iterations=best_params["critic_iterations"],
-#             weight_clip=best_params["weight_clip"],
-#             use_gpu=use_gpu
-#         )
-
-#     else:
-#         raise ValueError("Invalid model type. Choose 'GAN' or 'WGAN'.")
-
-#     # Generate synthetic samples
-#     print(f"✨ Generating {num_samples} synthetic samples with {model_type}...")
-#     synthetic_data = generate_synthetic_samples(generator, num_samples=num_samples, latent_dim=best_params["latent_dim"], use_gpu=use_gpu)
-
-#     return synthetic_data
+    # Return CuPy array if using GPU, otherwise return NumPy array
+    if use_gpu:
+        return cp.asarray(synthetic_data.cpu().numpy())  # Convert directly to CuPy
+    else:
+        return synthetic_data.cpu().numpy()  # Standard NumPy array

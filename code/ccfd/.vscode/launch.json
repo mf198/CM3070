@@ -15,8 +15,8 @@
             "name": "Python Debugger: optimize_model",
             "type": "debugpy",
             "request": "launch",
-            "module": "scripts.optimize_models",
-            "args": ["--device", "cpu", "--model", "knn", "--trials", "1", "--jobs", "1"]
+            "module": "scripts.train_models",
+            "args": ["--device", "cpu", "--model", "xgboost", "--ovs", "gan",  "--trials", "1", "--jobs", "1"]
         }        
     ]
 }
