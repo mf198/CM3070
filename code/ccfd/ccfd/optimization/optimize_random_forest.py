@@ -30,14 +30,14 @@ def objective_random_forest(trial, X_train, y_train, train_params):
         float: The computed evaluation metric score.
     """
 
+    use_gpu = train_params["device"] == "gpu"
+    ovs_function = train_params["oversampling_function"]
+
     # Define parameters separately for GPU and CPU
     params = {
         "n_estimators": trial.suggest_int("n_estimators", 50, 500, step=50),
         "max_depth": trial.suggest_int("max_depth", 5, 50, step=5),
     }
-
-    use_gpu = train_params["device"] == "gpu"
-
     if use_gpu:
         params["n_bins"] = trial.suggest_int("n_bins", 32, 256, step=32)  # Only for cuML
 
@@ -67,7 +67,15 @@ def objective_random_forest(trial, X_train, y_train, train_params):
             X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
             y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
 
-        model.fit(X_train_fold, y_train_fold)
+        # Apply an oversampling method if selected
+        if ovs_function:
+            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(X_train_fold, y_train_fold, use_gpu)
+        else:
+            X_train_fold_oversampled = X_train_fold
+            y_train_fold_oversampled = y_train_fold
+
+        # Train model on the oversampled fold
+        model.fit(X_train_fold_oversampled, y_train_fold_oversampled)
 
         # Predict probabilities
         y_proba = model.predict_proba(X_val_fold)

@@ -14,33 +14,34 @@ from ccfd.data.gan_oversampler import (
 )
 
 
-def apply_smote(
-    df: pd.DataFrame, target_column: str = "Class", use_gpu=False
-) -> pd.DataFrame:
+def apply_smote(X, y, use_gpu=False) -> tuple:
     """
-    Balances the dataset using SMOTE.
+    Balances the dataset using SMOTE on the given training fold.
 
     Args:
-        df (pd.DataFrame): The input dataset.
-        target_column (str): The column containing class labels.
+        X (pd.DataFrame or cudf.DataFrame): The training features for the current fold.
+        y (pd.Series or cudf.Series): The training labels for the current fold.
+        use_gpu (bool): Whether to use GPU (converts back to cuDF if True).
 
     Returns:
-        pd.DataFrame: A balanced dataset.
+        tuple: (X_resampled, y_resampled) - The oversampled training data (format matches input).
     """
-    X = df.drop(columns=[target_column])
-    y = df[target_column]
-
     smote = SMOTE(sampling_strategy="minority", random_state=42)
+
+    # Convert cuDF to pandas for SMOTE (if needed)
+    is_cudf = isinstance(X, cudf.DataFrame)
+    if is_cudf:
+        X, y = X.to_pandas(), y.to_pandas()
+
+    # Apply SMOTE
     X_resampled, y_resampled = smote.fit_resample(X, y)
 
-    df_balanced = pd.DataFrame(X_resampled, columns=X.columns)
-    df_balanced[target_column] = y_resampled
-
     # Convert back to cuDF if GPU is enabled
-    return cudf.DataFrame(df_balanced) if use_gpu else df_balanced
+    if use_gpu and is_cudf:
+        return cudf.DataFrame(X_resampled, columns=X.columns), cudf.Series(y_resampled)
+    else:
+        return pd.DataFrame(X_resampled, columns=X.columns), pd.Series(y_resampled)
 
-
-###
 
 
 def apply_adasyn(
@@ -235,6 +236,7 @@ import cupy as cp
 import numpy as np
 import pandas as pd
 
+
 def apply_gan_oversampling(
     X_train, y_train, use_gpu=False, model_path="ccfd/pretrained_models/pt_gan.pth"
 ):
@@ -259,8 +261,8 @@ def apply_gan_oversampling(
     else:
         unique_classes, class_counts = np.unique(y_train, return_counts=True)
 
-    class_distribution = dict(zip(unique_classes, class_counts))
-    print(f"Class distribution before oversampling: {class_distribution}")
+    # class_distribution = dict(zip(unique_classes, class_counts))
+    # print(f"Class distribution before oversampling: {class_distribution}")
 
     # Identify the minority and majority class
     minority_class = unique_classes[np.argmin(class_counts)]
@@ -268,7 +270,7 @@ def apply_gan_oversampling(
 
     # Calculate the number of synthetic samples needed
     num_samples = class_counts.max() - class_counts.min()
-    print(f"🔄 Generating {num_samples} synthetic samples to balance the dataset.")
+    # print(f"🔄 Generating {num_samples} synthetic samples to balance the dataset.")
 
     # Extract minority class samples
     minority_mask = y_train == minority_class
@@ -279,13 +281,17 @@ def apply_gan_oversampling(
 
     # Convert data to tensors if needed
     if use_gpu:
-        X_minority = torch.tensor(X_minority.to_cupy(), dtype=torch.float32, device=device)
+        X_minority = torch.tensor(
+            X_minority.to_cupy(), dtype=torch.float32, device=device
+        )
     else:
-        X_minority = torch.tensor(X_minority.to_numpy(), dtype=torch.float32, device=device)
+        X_minority = torch.tensor(
+            X_minority.to_numpy(), dtype=torch.float32, device=device
+        )
 
     # Check if pre-trained GAN model exists
     if os.path.exists(model_path):
-        print(f"📂 Loading pre-trained GAN model from: {model_path}")
+        # print(f"📂 Loading pre-trained GAN model from: {model_path}")
 
         # Load saved model
         checkpoint = torch.load(model_path, map_location=device, weights_only=True)
@@ -301,7 +307,9 @@ def apply_gan_oversampling(
         generator = train_gan(X_minority, num_epochs=500, latent_dim=10, batch_size=32)
 
     # Generate synthetic samples using optimized function
-    synthetic_data = generate_synthetic_samples(generator, num_samples=num_samples, use_gpu=use_gpu)
+    synthetic_data = generate_synthetic_samples(
+        generator, num_samples=num_samples, use_gpu=use_gpu
+    )
 
     # Create labels for synthetic samples
     if use_gpu:
@@ -314,7 +322,9 @@ def apply_gan_oversampling(
         X_balanced = cudf.DataFrame(cp.vstack((X_train.to_cupy(), synthetic_data)))
         y_balanced = cudf.concat([y_train, y_synthetic])
     else:
-        X_balanced = pd.DataFrame(np.vstack((X_train, synthetic_data)), columns=X_train.columns)
-        y_balanced = pd.concat([y_train, y_synthetic], ignore_index=True)   
+        X_balanced = pd.DataFrame(
+            np.vstack((X_train, synthetic_data)), columns=X_train.columns
+        )
+        y_balanced = pd.concat([y_train, y_synthetic], ignore_index=True)
 
     return X_balanced, y_balanced

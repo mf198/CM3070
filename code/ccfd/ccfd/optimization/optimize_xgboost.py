@@ -29,6 +29,7 @@ def objective_xgboost(trial, X_train, y_train, train_params):
     """
 
     use_gpu = train_params["device"] == "gpu"
+    ovs_function = train_params["oversampling_function"]
 
     params = {
         "max_depth": trial.suggest_int("max_depth", 3, 15),
@@ -77,8 +78,15 @@ def objective_xgboost(trial, X_train, y_train, train_params):
             X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
             y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
 
+        # Apply an oversampling method if selected
+        if ovs_function:
+            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(X_train_fold, y_train_fold, use_gpu)
+        else:
+            X_train_fold_oversampled = X_train_fold
+            y_train_fold_oversampled = y_train_fold
+
         # Convert to DMatrix for XGBoost
-        dtrain = xgb.DMatrix(to_numpy_safe(X_train_fold), label=to_numpy_safe(y_train_fold))
+        dtrain = xgb.DMatrix(to_numpy_safe(X_train_fold_oversampled), label=to_numpy_safe(y_train_fold_oversampled))
         dval = xgb.DMatrix(to_numpy_safe(X_val_fold), label=to_numpy_safe(y_val_fold))
 
         model = xgb.train(
@@ -86,15 +94,15 @@ def objective_xgboost(trial, X_train, y_train, train_params):
             dtrain,
             num_boost_round=5000,
             evals=[(dval, "eval")],
-            early_stopping_rounds=50,  # Enables `best_iteration`
+            early_stopping_rounds=50,
             verbose_eval=False,
         )
 
-        # Use best_iteration only if early stopping is enabled
+        # Get the best iteration (if early stopping triggered)
         best_iteration = model.best_iteration if model.best_iteration else 5000
 
-        # Predict using `best_iteration` (if available)
-        y_proba = model.predict(dval, iteration_range=(0, best_iteration))
+        # Use the best iteration for prediction
+        y_proba = model.predict(dval, iteration_range=(0, best_iteration))   
 
         # Convert labels to NumPy
         y_val_fold = to_numpy_safe(y_val_fold)

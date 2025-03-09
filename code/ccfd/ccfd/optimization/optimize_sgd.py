@@ -30,6 +30,7 @@ def objective_sgd(trial, X_train, y_train, train_params):
     """
 
     use_gpu = train_params["device"] == "gpu"
+    ovs_function = train_params["oversampling_function"]
 
     if use_gpu:
         params = {
@@ -77,7 +78,15 @@ def objective_sgd(trial, X_train, y_train, train_params):
             X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
             y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
 
-        model.fit(X_train_fold, y_train_fold)
+        # Apply an oversampling method if selected
+        if ovs_function:
+            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(X_train_fold, y_train_fold, use_gpu)
+        else:
+            X_train_fold_oversampled = X_train_fold
+            y_train_fold_oversampled = y_train_fold
+
+        # Train model on the oversampled fold
+        model.fit(X_train_fold_oversampled, y_train_fold_oversampled)
 
         # Predict probabilities
         try:

@@ -16,7 +16,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.train_models",
-            "args": ["--device", "cpu", "--model", "xgboost", "--ovs", "gan",  "--trials", "1", "--jobs", "1"]
+            "args": ["--device", "gpu", "--model", "xgboost", "--ovs", "smote",  "--trials", "1", "--jobs", "1"]
         }        
     ]
 }

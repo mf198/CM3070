@@ -144,7 +144,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output_folder",
         type=str,
-        default="results",
+        default="ccfd/pretrained_models",
         help="Folder where optimization results will be saved.",
     )
 

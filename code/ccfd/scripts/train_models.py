@@ -73,12 +73,24 @@ def optimize_model(train_params: dict):
             - output_folder (str): Folder where results will be saved.
     """
 
+    # Define the mapping of oversampling methods to functions
+    oversampling_methods = {
+        "smote": apply_smote,
+        "adasyn": apply_adasyn,
+        "svm-smote": apply_svm_smote,
+        "gan": apply_gan_oversampling,
+        "wgan": apply_wgan_oversampling,
+    }
+
     # Extract parameters from dictionary
     dataset_path = train_params["dataset"]
     use_gpu = train_params["device"] == "gpu"
     model = train_params["model"]
     oversampling_method = train_params.get("ovs", None)  # Might be None
     output_folder = train_params["output_folder"]
+    
+    # Store the selected oversampling function in train_params
+    train_params["oversampling_function"] = oversampling_methods.get(oversampling_method, None)
 
     # Load dataset
     df = load_dataset(dataset_path, use_gpu)
@@ -91,19 +103,6 @@ def optimize_model(train_params: dict):
     X_train, X_test, y_train, y_test = prepare_data(df, use_gpu=use_gpu)
 
     results = {}
-
-    ### **Apply Oversampling**
-    print(f"\n🔄 Applying {oversampling_method} oversampling to training data...")
-    if oversampling_method == "smote":
-        X_train, y_train = apply_smote(X_train, y_train)
-    elif oversampling_method == "adasyn":
-        X_train, y_train = apply_adasyn(X_train, y_train)
-    elif oversampling_method == "svm-smote":
-        X_train, y_train = apply_svm_smote(X_train, y_train)
-    elif oversampling_method == "gan":
-        X_train, y_train = apply_gan_oversampling(X_train, y_train, use_gpu=use_gpu)
-    elif oversampling_method == "wgan":
-        X_train, y_train = apply_wgan_oversampling(X_train, y_train, use_gpu=use_gpu)
 
     ### **Machine Learning Models Optimization**
     if model in ["knn", "all"]:
