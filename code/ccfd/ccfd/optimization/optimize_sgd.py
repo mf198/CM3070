@@ -34,20 +34,20 @@ def objective_sgd(trial, X_train, y_train, train_params):
 
     if use_gpu:
         params = {
-            "loss": "log",  # Logistic Regression
-            "eta0": trial.suggest_float("eta0", 1e-5, 1e-1, log=True),
-            "batch_size": trial.suggest_categorical("batch_size", [256, 512, 1024]),
+            "loss": "adam",  # Logistic Regression
+            "eta0": trial.suggest_float("eta0", 1e-6, 1e-2, log=True),
+            "batch_size": trial.suggest_categorical("batch_size", [512, 1024, 2048]),
             "epochs": trial.suggest_int(
-                "epochs", 50, 500, step=50
+                "epochs", 500, 5000, step=500
             ),  # cuML uses "epochs"
         }
         model = MBSGDClassifier(**params)
     else:
         params = {
-            "eta0": trial.suggest_float("eta0", 1e-5, 1e-1, log=True),
+            "eta0": trial.suggest_float("eta0", 1e-6, 1e-2, log=True),
             "learning_rate": "constant",
             "max_iter": trial.suggest_int(
-                "max_iter", 100, 1900, step=200
+                "max_iter", 500, 5000, step=5000
             ),  # CPU uses "max_iter"
         }
         model = SGDClassifier(
@@ -132,16 +132,19 @@ def optimize_sgd(X_train, y_train, train_params):
     """
 
     use_gpu = train_params["device"] == "gpu"
-    n_trials = train_params["trials"]
     metric = train_params["metric"]
+    model_name = train_params["model"]
+    n_trials = train_params["trials"]
     n_jobs = train_params["jobs"]
+    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"    
     output_folder = train_params["output_folder"]
 
     # Ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
     # Define model save path dynamically
-    save_path = os.path.join(output_folder, "pt_sgd.pkl")
+    save_filename = f"pt_{model_name}_{ovs_name}_{metric}.pkl"
+    save_path = os.path.join(train_params["output_folder"], save_filename)
 
     study = optuna.create_study(
         direction="maximize", pruner=optuna.pruners.MedianPruner()

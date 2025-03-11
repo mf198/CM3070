@@ -271,7 +271,7 @@ def evaluate_model(y_true, y_pred, train_params):
 
     metric = train_params["metric"]    
 
-    if metric == "pr_auc":
+    if metric == "prauc":
         return average_precision_score(y_true, y_pred)  # PR AUC needs probabilities
 
     elif metric == "f1":
@@ -290,4 +290,4 @@ def evaluate_model(y_true, y_pred, train_params):
         return (false_positives * cost_fp) + (false_negatives * cost_fn)
 
     else:
-        raise ValueError("Invalid metric. Choose from ['pr_auc', 'f1', 'precision', 'cost'].")
+        raise ValueError("Invalid metric. Choose from ['prauc', 'f1', 'precision', 'cost'].")

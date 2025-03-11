@@ -123,16 +123,19 @@ def optimize_logistic_regression(
     """
 
     use_gpu = train_params["device"] == "gpu"
-    n_trials = train_params["trials"]
     metric = train_params["metric"]
+    model_name = train_params["model"]
+    n_trials = train_params["trials"]
     n_jobs = train_params["jobs"]
+    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"    
     output_folder = train_params["output_folder"]
 
     # Ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
     # Define model save path dynamically
-    save_path = os.path.join(output_folder, "pt_logistic_regression.pkl")    
+    save_filename = f"pt_{model_name}_{ovs_name}_{metric}.pkl"
+    save_path = os.path.join(train_params["output_folder"], save_filename)
 
     study = optuna.create_study(direction="maximize", pruner=optuna.pruners.MedianPruner())
     study.optimize(lambda trial: objective_logistic_regression(trial, X_train, y_train, train_params),

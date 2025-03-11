@@ -34,7 +34,7 @@ class Discriminator(nn.Module): # Used for 'vanilla' GAN
             nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 1),
-            nn.Sigmoid()
+            #nn.Sigmoid()
         )
         
     def forward(self, x):

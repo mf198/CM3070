@@ -66,11 +66,12 @@ def optimize_model(train_params: dict):
         train_params (dict): Dictionary containing all experiment parameters, including:
             - dataset (str): Path to the dataset.
             - device (str): "gpu" or "cpu".
-            - model (str): Model to optimize (""knn", "logistic_regression", etc.).
+            - model (str): Model to optimize (""knn", "lr", "rf" etc.).
             - trials (int): Number of optimization trials.
             - jobs (int): Number of parallel jobs.
             - ovs (str, optional): Oversampling method ("smote", "adasyn", etc.).
-            - output_folder (str): Folder where results will be saved.
+            - metric (str, optional): Evaluation metric ("prauc", "cost", etc.).
+            - output_folder (str): Folder where results will be saved.model_name = train_params["model"]
     """
 
     # Define the mapping of oversampling methods to functions
@@ -111,13 +112,13 @@ def optimize_model(train_params: dict):
         results["KNN"] = best_knn_params
         print(f"🎯 Best KNN Parameters: {best_knn_params}")
 
-    if model in ["logistic_regression", "all"]:
+    if model in ["lr", "all"]:
         print("\n🚀 Running Logistic Regression optimization...")
         best_lr_params = optimize_logistic_regression(X_train, y_train, params)
         results["LogisticRegression"] = best_lr_params
         print(f"🎯 Best Logistic Regression Parameters: {best_lr_params}")
 
-    if model in ["random_forest", "all"]:
+    if model in ["rf", "all"]:
         print("\n🚀 Running Random Forest optimization...")
         best_rf_params = optimize_random_forest(X_train, y_train, train_params)
         results["RandomForest"] = best_rf_params
@@ -199,9 +200,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--metric",
-        choices=["pr_auc", "f1", "precision", "cost"],
-        default="pr_auc",
-        help="Evaluation metric to optimize. Options: 'pr_auc', 'f1', 'precision', 'cost'.",
+        choices=["prauc", "f1", "precision", "cost"],
+        default="prauc",
+        help="Evaluation metric to optimize. Options: 'prauc', 'f1', 'precision', 'cost'.",
     )
     parser.add_argument(
         "--cost_fp",

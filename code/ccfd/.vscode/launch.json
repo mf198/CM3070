@@ -16,7 +16,14 @@
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.train_models",
-            "args": ["--device", "gpu", "--model", "xgboost", "--ovs", "smote",  "--trials", "1", "--jobs", "1"]
-        }        
+            "args": ["--device", "cpu", "--model", "sgd", "--ovs", "smote",  "--trials", "1", "--jobs", "1"]
+        },
+        {
+            "name": "Python Debugger: optimize_ovs",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "scripts.optimize_ovs",
+            "args": ["--device", "cpu", "--ovs", "gan", "--trials", "1", "--jobs", "1"]
+        }
     ]
 }
