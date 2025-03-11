@@ -33,6 +33,7 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
     """
 
     use_gpu = train_params["device"] == "gpu"
+    ovs_function = train_params["oversampling_function"]
 
     if use_gpu:
         solver = "qn"  # cuML only supports 'qn'
@@ -73,7 +74,15 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
             X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
             y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
 
-        model.fit(X_train_fold, y_train_fold)
+        # Apply an oversampling method if selected
+        if ovs_function:
+            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(X_train_fold, y_train_fold, use_gpu)
+        else:
+            X_train_fold_oversampled = X_train_fold
+            y_train_fold_oversampled = y_train_fold
+
+        # Train model on the oversampled fold
+        model.fit(X_train_fold_oversampled, y_train_fold_oversampled)
 
         # Predict probabilities
         y_proba = model.predict_proba(X_val_fold)
@@ -114,16 +123,19 @@ def optimize_logistic_regression(
     """
 
     use_gpu = train_params["device"] == "gpu"
-    n_trials = train_params["trials"]
     metric = train_params["metric"]
+    model_name = train_params["model"]
+    n_trials = train_params["trials"]
     n_jobs = train_params["jobs"]
+    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"    
     output_folder = train_params["output_folder"]
 
     # Ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
     # Define model save path dynamically
-    save_path = os.path.join(output_folder, "pt_logistic_regression.pkl")    
+    save_filename = f"pt_{model_name}_{ovs_name}_{metric}.pkl"
+    save_path = os.path.join(train_params["output_folder"], save_filename)
 
     study = optuna.create_study(direction="maximize", pruner=optuna.pruners.MedianPruner())
     study.optimize(lambda trial: objective_logistic_regression(trial, X_train, y_train, train_params),

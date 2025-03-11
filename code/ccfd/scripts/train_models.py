@@ -66,12 +66,22 @@ def optimize_model(train_params: dict):
         train_params (dict): Dictionary containing all experiment parameters, including:
             - dataset (str): Path to the dataset.
             - device (str): "gpu" or "cpu".
-            - model (str): Model to optimize (""knn", "logistic_regression", etc.).
+            - model (str): Model to optimize (""knn", "lr", "rf" etc.).
             - trials (int): Number of optimization trials.
             - jobs (int): Number of parallel jobs.
             - ovs (str, optional): Oversampling method ("smote", "adasyn", etc.).
-            - output_folder (str): Folder where results will be saved.
+            - metric (str, optional): Evaluation metric ("prauc", "cost", etc.).
+            - output_folder (str): Folder where results will be saved.model_name = train_params["model"]
     """
+
+    # Define the mapping of oversampling methods to functions
+    oversampling_methods = {
+        "smote": apply_smote,
+        "adasyn": apply_adasyn,
+        "svm-smote": apply_svm_smote,
+        "gan": apply_gan_oversampling,
+        "wgan": apply_wgan_oversampling,
+    }
 
     # Extract parameters from dictionary
     dataset_path = train_params["dataset"]
@@ -79,6 +89,9 @@ def optimize_model(train_params: dict):
     model = train_params["model"]
     oversampling_method = train_params.get("ovs", None)  # Might be None
     output_folder = train_params["output_folder"]
+    
+    # Store the selected oversampling function in train_params
+    train_params["oversampling_function"] = oversampling_methods.get(oversampling_method, None)
 
     # Load dataset
     df = load_dataset(dataset_path, use_gpu)
@@ -92,19 +105,6 @@ def optimize_model(train_params: dict):
 
     results = {}
 
-    ### **Apply Oversampling**
-    print(f"\n🔄 Applying {oversampling_method} oversampling to training data...")
-    if oversampling_method == "smote":
-        X_train, y_train = apply_smote(X_train, y_train)
-    elif oversampling_method == "adasyn":
-        X_train, y_train = apply_adasyn(X_train, y_train)
-    elif oversampling_method == "svm-smote":
-        X_train, y_train = apply_svm_smote(X_train, y_train)
-    elif oversampling_method == "gan":
-        X_train, y_train = apply_gan_oversampling(X_train, y_train, use_gpu=use_gpu)
-    elif oversampling_method == "wgan":
-        X_train, y_train = apply_wgan_oversampling(X_train, y_train, use_gpu=use_gpu)
-
     ### **Machine Learning Models Optimization**
     if model in ["knn", "all"]:
         print("\n🚀 Running KNN optimization...")
@@ -112,13 +112,13 @@ def optimize_model(train_params: dict):
         results["KNN"] = best_knn_params
         print(f"🎯 Best KNN Parameters: {best_knn_params}")
 
-    if model in ["logistic_regression", "all"]:
+    if model in ["lr", "all"]:
         print("\n🚀 Running Logistic Regression optimization...")
         best_lr_params = optimize_logistic_regression(X_train, y_train, params)
         results["LogisticRegression"] = best_lr_params
         print(f"🎯 Best Logistic Regression Parameters: {best_lr_params}")
 
-    if model in ["random_forest", "all"]:
+    if model in ["rf", "all"]:
         print("\n🚀 Running Random Forest optimization...")
         best_rf_params = optimize_random_forest(X_train, y_train, train_params)
         results["RandomForest"] = best_rf_params
@@ -200,9 +200,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--metric",
-        choices=["pr_auc", "f1", "precision", "cost"],
-        default="pr_auc",
-        help="Evaluation metric to optimize. Options: 'pr_auc', 'f1', 'precision', 'cost'.",
+        choices=["prauc", "f1", "precision", "cost"],
+        default="prauc",
+        help="Evaluation metric to optimize. Options: 'prauc', 'f1', 'precision', 'cost'.",
     )
     parser.add_argument(
         "--cost_fp",
