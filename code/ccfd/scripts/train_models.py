@@ -170,8 +170,8 @@ if __name__ == "__main__":
         "--model",
         choices=[
             "knn",
-            "logistic_regression",
-            "random_forest",
+            "lr",
+            "rf",
             "sgd",
             "xgboost",
             "both",
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         args.cost_fn = None
 
     # Convert selections
-    model = args.model  # "knn", "logistic_regression", etc.
+    model = args.model  # "knn", "lr", etc.
     trials = args.trials
     jobs = args.jobs
     ovs = args.ovs if model not in ["gan", "wgan"] else None  # Only for ML models
