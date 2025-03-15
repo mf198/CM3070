@@ -10,6 +10,8 @@ from cuml.ensemble import RandomForestClassifier as cuRandomForestClassifier
 from sklearn.ensemble import RandomForestClassifier as skRandomForestClassifier
 from ccfd.evaluation.evaluate_models import evaluate_model
 from ccfd.utils.type_converter import to_numpy_safe
+from ccfd.utils.time_performance import save_time_performance
+from ccfd.utils.timer import Timer
 
 
 def objective_random_forest(trial, X_train, y_train, train_params):
@@ -113,6 +115,7 @@ def optimize_random_forest(
     Returns:
         dict: The best hyperparameters found for KNN.
     """
+    timer = Timer()
 
     use_gpu = train_params["device"] == "gpu"
     metric = train_params["metric"]
@@ -128,6 +131,9 @@ def optimize_random_forest(
     # Define model save path dynamically
     save_filename = f"pt_{model_name}_{ovs_name}_{metric}.pkl"
     save_path = os.path.join(train_params["output_folder"], save_filename)
+
+    # Start the timer to calculate training time
+    timer.start()
 
     study = optuna.create_study(direction="maximize", pruner=optuna.pruners.MedianPruner())
     study.optimize(lambda trial: objective_random_forest(trial, X_train, y_train, train_params),
@@ -146,8 +152,15 @@ def optimize_random_forest(
 
     best_model.fit(X_train, y_train)
 
+    # Total execution time
+    elapsed_time = round(timer.elapsed_final(), 2)
+    print(f"📊 Total training time: {elapsed_time}")
+
     # Save the best model
     joblib.dump(best_model, save_path)
     print(f"✅ Best Random Forest model saved at: {save_path}")
+
+   # Save training performance details to CSV
+    save_time_performance(train_params, elapsed_time)    
 
     return study.best_params

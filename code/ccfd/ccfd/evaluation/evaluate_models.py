@@ -279,6 +279,9 @@ def evaluate_model(y_true, y_pred, train_params):
 
     elif metric == "precision":
         return precision_score(y_true, y_binary)  # Precision uses binary labels
+    
+    elif metric == "recall":
+        return recall_score(y_true, y_binary)  # Recall uses binary labels
 
     elif metric == "cost":
         cost_fp = train_params["cost_fp"]

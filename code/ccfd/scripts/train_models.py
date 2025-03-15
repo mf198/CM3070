@@ -78,7 +78,7 @@ def optimize_model(train_params: dict):
     oversampling_methods = {
         "smote": apply_smote,
         "adasyn": apply_adasyn,
-        "svm-smote": apply_svm_smote,
+        "svmsmote": apply_svm_smote,
         "gan": apply_gan_oversampling,
         "wgan": apply_wgan_oversampling,
     }
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--ovs",
-        choices=["smote", "adasyn", "svm-smote", "gan", "wgan"],
+        choices=["smote", "adasyn", "svmsmote", "gan", "wgan"],
         default=None,
         help="Select the oversampling method (not used for 'gan' or 'wgan' models).",
     )
@@ -199,10 +199,16 @@ if __name__ == "__main__":
         help="Folder where optimization results will be saved.",
     )
     parser.add_argument(
+        "--results_folder",
+        type=str,
+        default="results",
+        help="Folder where training results will be saved.",
+    )    
+    parser.add_argument(
         "--metric",
-        choices=["prauc", "f1", "precision", "cost"],
+        choices=["prauc", "f1", "precision", "recall", "cost"],
         default="prauc",
-        help="Evaluation metric to optimize. Options: 'prauc', 'f1', 'precision', 'cost'.",
+        help="Evaluation metric to optimize. Options: 'prauc', 'f1', 'precision', 'recall', 'cost'.",
     )
     parser.add_argument(
         "--cost_fp",
@@ -230,6 +236,7 @@ if __name__ == "__main__":
     jobs = args.jobs
     ovs = args.ovs if model not in ["gan", "wgan"] else None  # Only for ML models
     output_folder = args.output_folder
+    results_folder = args.results_folder
     metric = args.metric
     cost_fp = args.cost_fp
     cost_fn = args.cost_fn
@@ -242,10 +249,11 @@ if __name__ == "__main__":
         "trials": trials,
         "jobs": jobs,
         "ovs": ovs,
-        "output_folder": output_folder,
         "metric": metric,
         "cost_fp": cost_fp,
         "cost_fn": cost_fn,
+        "output_folder": output_folder,
+        "results_folder": results_folder
     }
 
     # Print experiment setup

@@ -8,6 +8,8 @@ import os
 from sklearn.model_selection import StratifiedKFold
 from ccfd.evaluation.evaluate_models import evaluate_model
 from ccfd.utils.type_converter import to_numpy_safe
+from ccfd.utils.time_performance import save_time_performance
+from ccfd.utils.timer import Timer
 
 
 def objective_xgboost(trial, X_train, y_train, train_params):
@@ -136,6 +138,7 @@ def optimize_xgboost(
     Returns:
         dict: The best hyperparameters found for XGBoost.
     """
+    timer = Timer()
 
     use_gpu = train_params["device"] == "gpu"
     n_trials = train_params["trials"]
@@ -148,6 +151,9 @@ def optimize_xgboost(
 
     # Define model save path dynamically
     save_path = os.path.join(output_folder, "pt_xbgoost.pkl")    
+
+    # Start the timer to calculate training time
+    timer.start()
 
     study = optuna.create_study(
         direction="maximize", pruner=optuna.pruners.MedianPruner()
@@ -168,8 +174,15 @@ def optimize_xgboost(
     best_model = xgb.XGBClassifier(**study.best_params)
     best_model.fit(X_train, y_train)
 
+    # Total execution time
+    elapsed_time = round(timer.elapsed_final(), 2)
+    print(f"📊 Total training time: {elapsed_time}")
+
     # Save the best model
     joblib.dump(best_model, save_path)
     print(f"✅ Best XGBoost model saved at: {save_path}")
+
+   # Save training performance details to CSV
+    save_time_performance(train_params, elapsed_time)    
 
     return study.best_params

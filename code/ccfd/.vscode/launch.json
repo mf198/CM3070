@@ -16,7 +16,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.train_models",
-            "args": ["--device", "cpu", "--model", "sgd", "--ovs", "smote",  "--trials", "1", "--jobs", "1"]
+            "args": ["--device", "gpu", "--model", "knn", "--ovs", "smote",  "--trials", "1", "--jobs", "1"]
         },
         {
             "name": "Python Debugger: optimize_ovs",
