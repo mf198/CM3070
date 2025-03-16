@@ -16,6 +16,8 @@ from sklearn.metrics import (
 from typing import Dict, Optional
 from ccfd.evaluation.threshold_analysis import compute_curve_values, find_best_threshold
 from ccfd.evaluation.save_curves import save_selected_curve
+from ccfd.evaluation.curve_based_methods import find_best_threshold_cost, find_best_threshold_pr
+
 
 def compute_metrics(
     y_test, y_pred, y_proba, best_threshold, use_gpu=False
@@ -38,6 +40,7 @@ def compute_metrics(
         metrics = {
             "accuracy": accuracy_score_gpu(y_test, y_pred),
             "roc_auc": roc_auc_score_gpu(y_test, y_proba),
+            "pr_auc": average_precision_score(y_test, y_proba),
             "f1_score": f1_score(y_test, y_pred),
             "precision": precision_score(y_test, y_pred),
             "recall": recall_score(y_test, y_pred),
@@ -47,6 +50,7 @@ def compute_metrics(
         metrics = {
             "accuracy": accuracy_score(y_test, y_pred),
             "roc_auc": roc_auc_score(y_test, y_proba),
+            "pr_auc": average_precision_score(y_test, y_proba),
             "f1_score": f1_score(y_test, y_pred),
             "precision": precision_score(y_test, y_pred),
             "recall": recall_score(y_test, y_pred),
@@ -143,109 +147,51 @@ def evaluate_model_cpu(
     return compute_metrics(y_test, y_pred, y_proba, best_threshold, False)
 
 
-def evaluate_model_gpu(
-    model,
-    X_test: cudf.DataFrame,
-    y_test: cudf.Series,
-    threshold_method: Optional[str] = "default",
-    cost_fp: float = 1,
-    cost_fn: float = 10,
-    save_curve: bool = False,
-    output_file: str = "ccfd/results/curves.csv",
+def evaluate_model(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    y_proba: np.ndarray,
+    test_params: Dict
 ) -> Dict[str, float]:
     """
-    Evaluates the GPU-based model on the test set.
+    Evaluates model performance based on the chosen metric.
 
     Args:
-        model: Trained model.
-        X_test (cudf.DataFrame): Test features.
-        y_test: True labels (cuDF Series or NumPy array).
-        threshold_method (str, optional): Curve-based threshold selection method.
-                                          Options: "default" (0.5), "pr_curve", "cost_based".
-        cost_fp (float, optional): Cost of a false positive (for cost-based optimization).
-        cost_fn (float, optional): Cost of a false negative (for cost-based optimization).
+        y_true (np.ndarray): True labels as a NumPy array.
+        y_pred (array-like): Predicted labels.
+        y_proba (array-like): Predicted probabilities for the positive class.
+        test_params (dict): Dictionary containing evaluation parameters, including:
+            - "threshold_method" (str): Threshold selection method ("default", "pr_curve", "cost_based").
+            - "cost_fp" (float): Cost of a false positive (for cost-based optimization).
+            - "cost_fn" (float): Cost of a false negative (for cost-based optimization).
+            - "use_gpu" (bool): If True, uses GPU (cuML/cudf), otherwise uses CPU (sklearn/pandas).
 
     Returns:
         Dict[str, float]: Dictionary containing evaluation metrics.
     """
+    use_gpu = test_params.get("device", False) == "gpu"
+    threshold_method = test_params.get("threshold_method", "default")
+    cost_fp = test_params.get("cost_fp", 1)
+    cost_fn = test_params.get("cost_fn", 10)
 
-    y_pred = model.predict(X_test)  # XGBoost returns a NumPy array
-    if isinstance(y_pred, np.ndarray):
-        y_pred = cudf.Series(y_pred)  # Convert NumPy to cuDF
-
-    # Convert X_test to a numpy array which is compatible with all the models
-    if isinstance(X_test, np.ndarray) is False:
-        X_test = X_test.to_numpy()
-
-    # Handle `predict_proba()`
-    y_proba = None
-    if hasattr(model, "predict_proba"):
-        try:
-            y_proba = model.predict_proba(X_test)
-
-            if isinstance(y_proba, np.ndarray) is True:
-                y_proba = y_proba[:, 1]
-        except Exception:
-            print(
-                f"Warning: {model.__class__.__name__} does not support predict_proba(). Using raw predictions."
-            )
-            y_proba = y_pred  # Default to predictions
-
-    elif hasattr(model, "decision_function"):
-        try:
-            y_proba = model.decision_function(X_test)
-        except Exception:
-            print(
-                f"Warning: {model.__class__.__name__} does not support decision_function(). Using raw predictions."
-            )
-            y_proba = y_pred  # Default to predictions
-
-    else:
-        print(
-            f"Warning: {model.__class__.__name__} does not support probability outputs. Using raw predictions."
-        )
-        y_proba = y_pred  # Default to predictions
-
-    # Convert y_proba to NumPy format
-    if isinstance(y_proba, np.ndarray) is False:
-        y_proba = y_proba.to_numpy()
-
-    y_pred = y_pred.to_pandas()
-    y_test = y_test.to_pandas()
-
-    # Select the best threshold based on method
-    if threshold_method in ["pr_curve", "roc_curve", "cost_based"]:
-        metric1, metric2, thresholds = compute_curve_values(
-            y_test,
-            y_proba,
-            curve_type=threshold_method,
-            cost_fp=cost_fp,
-            cost_fn=cost_fn,
-        )
-        best_threshold = find_best_threshold(
-            metric1, metric2, thresholds, curve_type=threshold_method
-        )
+    # Select threshold based on method
+    if threshold_method == "pr_curve":
+        best_threshold = find_best_threshold_pr(y_true, y_pred)
+    elif threshold_method == "cost_based":
+        best_threshold = find_best_threshold_cost(y_true, y_pred, cost_fp, cost_fn)
     else:
         best_threshold = 0.5  # Default threshold
 
     print(f"🔍 Using threshold: {best_threshold:.4f}")
 
-    # Convert probabilities to binary predictions using best threshold
-    y_pred = (y_proba >= best_threshold).astype(int)
-
-    # Save selected curve if requested
-    if save_curve and threshold_method in ["pr_curve", "roc_curve", "cost_based"]:
-        save_selected_curve(
-            y_test, y_proba, output_file, threshold_method, cost_fp, cost_fn
-        )
-
-    # Compute evaluation metrics (GPU)
-    return compute_metrics(y_test, y_pred, y_proba, best_threshold, True)
+    # Compute evaluation metrics (scikit-learn for CPU, cuML alternative if available)
+    return compute_metrics(y_true, y_pred, y_proba, best_threshold, use_gpu)
 
 
 ###
 
-def evaluate_model(y_true, y_pred, train_params):
+
+def evaluate_model_metric(y_true, y_pred, train_params):
     """
     Evaluates model performance based on the chosen metric.
 
@@ -269,7 +215,7 @@ def evaluate_model(y_true, y_pred, train_params):
     # Convert probabilities to binary predictions (threshold = 0.5)
     y_binary = (y_pred >= 0.5).astype(int)
 
-    metric = train_params["metric"]    
+    metric = train_params["metric"]
 
     if metric == "prauc":
         return average_precision_score(y_true, y_pred)  # PR AUC needs probabilities
@@ -279,6 +225,9 @@ def evaluate_model(y_true, y_pred, train_params):
 
     elif metric == "precision":
         return precision_score(y_true, y_binary)  # Precision uses binary labels
+
+    elif metric == "recall":
+        return recall_score(y_true, y_binary)  # Recall uses binary labels
 
     elif metric == "cost":
         cost_fp = train_params["cost_fp"]
@@ -290,4 +239,6 @@ def evaluate_model(y_true, y_pred, train_params):
         return (false_positives * cost_fp) + (false_negatives * cost_fn)
 
     else:
-        raise ValueError("Invalid metric. Choose from ['prauc', 'f1', 'precision', 'cost'].")
+        raise ValueError(
+            "Invalid metric. Choose from ['prauc', 'f1', 'precision', 'cost']."
+        )

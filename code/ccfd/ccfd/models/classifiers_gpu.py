@@ -10,7 +10,7 @@ from cuml.linear_model import LogisticRegression, MBSGDClassifier
 from cuml.ensemble import RandomForestClassifier
 from cuml.neighbors import KNeighborsClassifier
 from cuml.metrics import accuracy_score, roc_auc_score
-from optuna.integration import PyTorchLightningPruningCallback
+#from optuna.integration import PyTorchLightningPruningCallback
 
 
 def train_random_forest_gpu(X_train: cudf.DataFrame, y_train: cudf.Series) -> RandomForestClassifier:

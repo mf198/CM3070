@@ -12,9 +12,10 @@ from ccfd.optimization.optimize_wgan import optimize_wgan
 # Import dataset and preprocessing functions
 from ccfd.data.dataset import load_dataset
 from ccfd.data.preprocess import clean_dataset
+from ccfd.data.dataset import prepare_data
 
 
-def prepare_data(df, target_column: str = "Class", use_gpu: bool = False):
+def xxxprepare_data(df, target_column: str = "Class", use_gpu: bool = False):
     """
     Splits the dataset into training and test sets. Converts to cuDF if GPU is enabled.
 

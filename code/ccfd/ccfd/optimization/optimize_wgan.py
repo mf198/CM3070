@@ -9,6 +9,8 @@ import numpy as np
 import os
 from sklearn.model_selection import StratifiedKFold
 from ccfd.data.gan_oversampler import Generator, Critic
+from ccfd.utils.time_performance import save_time_performance
+from ccfd.utils.timer import Timer
 
 
 def objective_wgan_old(trial, X_train, y_train, use_gpu=False):
@@ -241,6 +243,7 @@ def optimize_wgan(X_train, y_train, train_params):
     Returns:
         dict: Best hyperparameters from Optuna.
     """
+    timer = Timer()
 
     # Extract parameters
     use_gpu = train_params["device"] == "gpu"
@@ -268,6 +271,9 @@ def optimize_wgan(X_train, y_train, train_params):
     elif isinstance(y_train, np.ndarray):
         y_train = torch.tensor(y_train, dtype=torch.int32, device=device)
 
+    # Start the timer to calculate training time
+    timer.start()
+
     # Optimize using multiple parallel jobs
     study = optuna.create_study(
         direction="minimize", pruner=optuna.pruners.MedianPruner()
@@ -279,11 +285,16 @@ def optimize_wgan(X_train, y_train, train_params):
     )
 
     print("✅ Best Parameters for WGAN:", study.best_params)
+    print("🔥 Best Value for WGAN:", study.best_value)
 
     # Re-train best WGAN with found parameters
     best_params = study.best_params
     best_generator = Generator(best_params["latent_dim"], X_train.shape[1]).to(device)
     best_critic = Critic(X_train.shape[1]).to(device)
+
+    # Total execution time
+    elapsed_time = round(timer.elapsed_final(), 2)
+    print(f"📊 Total training time: {elapsed_time}")
 
     # Save best model
     torch.save({
@@ -293,5 +304,8 @@ def optimize_wgan(X_train, y_train, train_params):
     }, save_path)
 
     print(f"🎯 Best WGAN model saved at: {save_path}")
+
+    # Save training performance details to CSV
+    save_time_performance(train_params, study.best_value, elapsed_time)
 
     return best_params
