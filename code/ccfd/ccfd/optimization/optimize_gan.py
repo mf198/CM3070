@@ -290,6 +290,7 @@ def optimize_gan(X_train, y_train, train_params):
     )
 
     print("✅ Best Parameters for GAN:", study.best_params)
+    print("🔥 Best Value for GAN:", study.best_value)
 
     # Re-train best GAN with found parameters
     best_params = study.best_params
@@ -312,7 +313,7 @@ def optimize_gan(X_train, y_train, train_params):
 
     print(f"🎯 Best GAN model saved at: {save_path}")
 
-   # Save training performance details to CSV
-    save_time_performance(train_params, elapsed_time)    
+    # Save training performance details to CSV
+    save_time_performance(train_params, study.best_value, elapsed_time)
 
     return best_params

@@ -1,49 +1,26 @@
 import argparse
 import cudf
 import pandas as pd
-import cupy as cp
-import numpy as np
-from cuml.ensemble import RandomForestClassifier as cuRF
-from cuml.svm import SVC as cuSVC
-from cuml.linear_model import LogisticRegression as cuLogReg
-from cuml.neighbors import KNeighborsClassifier as cuKNN
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
-from ccfd.data.balancer import (
-    apply_smote,
-    apply_adasyn,
-    apply_svm_smote,
-    apply_gan_oversampling,
-    apply_wgan_oversampling,
-)
-from ccfd.models.classifiers_gpu import (
-    train_random_forest_gpu,
-    train_knn_gpu,
-    train_logistic_regression_gpu,
-    train_mbgd_gpu,
-    train_xgboost_gpu,
-)
-from ccfd.data.dataset import load_dataset
+from ccfd.data.dataset import load_dataset, prepare_data
 from ccfd.data.preprocess import clean_dataset
 from ccfd.utils.timer import Timer
 from ccfd.utils.gpu_monitor import track_gpu_during_training
 from ccfd.utils.tensorboard_model_logger import ModelTensorBoardLogger
 from ccfd.utils.tensorboard_gpu_logger import GPUTensorBoardLogger
 from cuml.model_selection import train_test_split as cuml_train_test_split
-from ccfd.models.classifiers_cpu import (
-    train_random_forest,
-    train_knn,
-    train_logistic_regression,
-    train_sgd,
-    train_xgboost,
-)
-from ccfd.evaluation.evaluate_models import evaluate_model_cpu, evaluate_model_gpu
+from ccfd.evaluation.evaluate_models import evaluate_model
+from ccfd.utils.type_converter import to_numpy_safe
+from ccfd.utils.timer import Timer
+import joblib
+import gc
 
 
-def prepare_data(df, target_column: str = "Class", use_gpu: bool = False):
+def aaaprepare_data(df, target_column: str = "Class", use_gpu: bool = False):
     """
     Splits the dataset into training and test sets. Converts to cuDF if GPU is enabled.
 
@@ -69,195 +46,168 @@ def prepare_data(df, target_column: str = "Class", use_gpu: bool = False):
 ###
 
 
-def test_models_with_oversampling(
-    filepath: str, use_gpu: bool, threshold_method: str, cost_fp: int, cost_fn: int
-):
+def test_models(params):
     """
-    Tests all models (GPU-accelerated cuML or CPU-based scikit-learn) with all oversampling methods.
+    Loads and tests pre-trained models (GPU-accelerated cuML or CPU-based scikit-learn) with test data.
 
     Args:
-        filepath (str): Path to the dataset.
-        use_gpu (bool): If True, runs models using cuML (GPU), otherwise uses scikit-learn (CPU).
+        params (dict): Dictionary containing all command-line arguments.
     """
     timer = Timer()
 
-    # The dataset is always loaded with pandas because
-    # cuML does not have many of the oversampling methods used
     print(f"\n📌 Loading dataset...")
-    df = load_dataset(filepath)
-
-    oversampling_methods = {
-        "GAN": apply_gan_oversampling,
-        "WGAN": apply_wgan_oversampling,
-        "SMOTE": apply_smote,
-        # "SVM-SMOTE": apply_svm_smote,
-        "ADASYN": apply_adasyn,
-    }
-
-    # Choose models based on GPU/CPU selection
-    if use_gpu:
-        models = {
-            "LogisticRegression": train_logistic_regression_gpu,
-            "RandomForest": train_random_forest_gpu,
-            "kNN": train_knn_gpu,
-            # "SGD": train_mbgd_gpu,
-            "XGBoost": train_xgboost_gpu,
-        }
-        evaluate_model = evaluate_model_gpu
-    else:
-        models = {
-            "LogisticRegression": train_logistic_regression,
-            # "RandomForest": train_random_forest,
-            # "kNN": train_knn,
-            # "SGD": train_sgd,
-            # "XGBoost": train_xgboost
-        }
-        evaluate_model = evaluate_model_cpu
+    df = load_dataset(params["dataset_path"])
 
     results = []
 
-    if use_gpu:
-        # Initialize TensorBoard gpu logger
-        gpu_monitor = GPUTensorBoardLogger(log_dir="runs/gpu_monitor")
+    use_gpu = params["device"] == "gpu"
 
-    # Initialize TensorBoard model logger
+    if use_gpu:
+        gpu_monitor = GPUTensorBoardLogger(log_dir="runs/gpu_monitor")
     model_monitor = ModelTensorBoardLogger(log_dir="runs/model_monitor")
 
-    # Clean the dataset
     df = clean_dataset(df)
 
-    # Split data before applying oversampling (to prevent data leakage)
-    print("\n✂️ Splitting dataset into train and test sets BEFORE oversampling...")
-    df_train, df_test = prepare_data(df, use_gpu=False)
-    X_test = df_test.drop(columns=["Class"])
-    y_test = df_test["Class"]
+    print("\n✂️ Splitting dataset into train and test sets...")
+    _, X_test, _, y_test = prepare_data(df, use_gpu=use_gpu)
 
-    # Convert to cuDF if using GPU
-    if use_gpu == True:
-        X_test = cudf.DataFrame(X_test)
-        y_test = cudf.Series(y_test)
+    # Convert to NumPy for compatibility
+    X_test = to_numpy_safe(X_test)
+    y_test = to_numpy_safe(y_test)
 
-    # Loop through oversampling methods
-    for oversampling_name, oversampling_function in oversampling_methods.items():
-        # Start the timer to calculate the execution time
-        timer.start()
+    model_list = ["knn", "lr", "rf", "sgd", "xgboost"]
+    metric_list = ["cost", "prauc", "f1", "recall", "precision"]
+    ovs_list = ["smote", "adasyn", "svmsmote", "gan", "wgan"]
 
-        print(f"\n===============================================")
-        print(f"🔄 Applying {oversampling_name} oversampling...")
-        print(f"===============================================")
-        df_train_balanced = oversampling_function(df_train, use_gpu=use_gpu)
+    # Determine selected models
+    selected_models = [params["model"]] if params["model"] in model_list else model_list
 
-        # Oversampling method execution time
-        ovs_time = round(timer.elapsed_final(), 2)
-        print(f"Oversampling time: {ovs_time}")
+    # Determine selected metrics
+    selected_metrics = [params["metric"]] if params["metric"] in metric_list else metric_list
 
-        # Extract balanced features and labels
-        X_train_balanced = df_train_balanced.drop(columns=["Class"])
-        y_train_balanced = df_train_balanced["Class"]
+    # Determine selected oversampling methods
+    selected_ovs = [params["ovs"]] if params["ovs"] in ovs_list else ovs_list
 
-        step = 0
-        for model_name, model_function in models.items():
-            print(
-                f"\n🚀 Training {model_name} with {oversampling_name} on {'GPU' if use_gpu else 'CPU'}..."
-            )
+    step = 0
+    for model_name in selected_models:
+        for ovs in selected_ovs:
+            for metric in selected_metrics:
+                model_filename = f"{params['model_folder']}/pt_{model_name}_{ovs}_{metric}.pkl"
+                print(
+                    f"\n🚀 Loading pre-trained {model_name} optimized for {metric} using {ovs}..."
+                )
 
-            timer.start()
+                try:
+                    model = joblib.load(model_filename)
+                    print(f"✅ Loaded model from {model_filename}")
+                except FileNotFoundError:
+                    print(f"⚠️ Model file {model_filename} not found. Skipping...")
+                    continue
 
-            # Train model
-            model = model_function(X_train_balanced, y_train_balanced)
+                # Get discrete predictions
+                y_pred = model.predict(X_test)
 
-            # Create the output filename based on the model used
-            filename = f"ccfd/results/curves_{model_name}_{oversampling_name}.csv"
+                # Get probability estimates (if supported)
+                if hasattr(model, "predict_proba"):
+                    y_proba = model.predict_proba(X_test)[:, 1]
+                else:
+                    y_proba = y_pred  # Default to predictions if the model does not support probabilities
 
-            # Evaluate model
-            metrics = evaluate_model(
-                model,
-                X_test,
-                y_test,
-                threshold_method=threshold_method,
-                cost_fp=cost_fp,
-                cost_fn=cost_fn,
-                save_curve=True,
-                output_file=filename,
-            )
-            metrics["Model"] = model_name
-            metrics["Oversampling"] = oversampling_name
-            metrics["Oversampling time"] = ovs_time
-            metrics["Training Time (s)"] = round(timer.elapsed_final(), 2)
+                y_proba = to_numpy_safe(y_proba)
 
-            if use_gpu:
-                # Log GPU usage
-                gpu_monitor.log_gpu_stats(step)
+                # Evaluate model with selected metric
+                metrics = evaluate_model(y_test, y_pred, y_proba, params)
 
-            # Log model metrics
-            model_monitor.log_scalar("Accuracy", metrics["accuracy"], step)
-            model_monitor.log_scalar("Precision", metrics["precision"], step)
-            model_monitor.log_scalar("Recall", metrics["recall"], step)
-            model_monitor.log_scalar("F1-score", metrics["f1_score"], step)
-            model_monitor.log_scalar("AUC", metrics["roc_auc"], step)
+                metrics["Model"] = model_name
+                metrics["Oversampling"] = ovs
+                metrics["Metric"] = metric
 
-            step += 1
-            results.append(metrics)
+                if use_gpu:
+                    gpu_monitor.log_gpu_stats(step)
 
-    # Save results
+                # Log metrics dynamically
+                for metric_name, value in metrics.items():
+                    if isinstance(value, (int, float)):  # Log only numeric values
+                        model_monitor.log_scalar(metric_name, value, step)
+
+                step += 1
+                results.append(metrics)
+
+                # Explicitly delete the model to avoid memory issues
+                del model
+                gc.collect()
+
     results_df = pd.DataFrame(results)
-    if use_gpu:
-        results_df.to_csv("ovs_models_results_gpu.csv", index=False)
-    else:
-        results_df.to_csv("ovs_models_results_cpu.csv", index=False)
+    results_df.to_csv(f"{params['results_folder']}/models_results.csv", index=False)
 
-    # Close loggers
     if use_gpu:
         gpu_monitor.close()
     model_monitor.close()
 
 
 if __name__ == "__main__":
-
-    dataset_path = "ccfd/data/creditcard.csv"
-
-    # Allow user to choose between GPU(default) or CPU training
     parser = argparse.ArgumentParser(description="Run model training on GPU or CPU")
     parser.add_argument(
         "--device",
         choices=["gpu", "cpu"],
         default="gpu",
-        help="Choose device for model training: gpu (default) or cpu",
+        help="Choose device for training: 'gpu' (default) or 'cpu'.",
     )
-
     parser.add_argument(
-        "--threshold",
-        choices=["default", "pr_curve", "cost_based"],
-        default="default",
-        help="Choose threshold selection method: 'default' (0.5), 'pr_curve' (Precision-Recall Curve), or 'cost_based'",
+        "--model",
+        choices=["knn", "lr", "rf", "sgd", "xgboost", "all"],
+        default="all",
+        help="Select which model to optimize.",
     )
-
-    # Cost Parameters (for cost-based thresholding)
+    parser.add_argument(
+        "--ovs",
+        choices=["smote", "adasyn", "svmsmote", "gan", "wgan", "all"],
+        default=None,
+        help="Select the oversampling method (not used for 'gan' or 'wgan' models).",
+    )
+    parser.add_argument(
+        "--model_folder",
+        type=str,
+        default="ccfd/pretrained_models",
+        help="Folder containing pre-trained models.",
+    )
+    parser.add_argument(
+        "--results_folder",
+        type=str,
+        default="results",
+        help="Folder where training results will be saved.",
+    )
+    parser.add_argument(
+        "--metric",
+        choices=["prauc", "f1", "precision", "recall", "cost", "all"],
+        default="prauc",
+        help="Evaluation metric to optimize.",
+    )
     parser.add_argument(
         "--cost_fp",
-        type=int,
-        choices=range(1, 11),
-        default=1,
-        help="Cost of a false positive (1-10, default: 1)",
+        type=float,
+        default=1.0,
+        help="Cost of a false positive (only used if metric='cost').",
     )
-
     parser.add_argument(
         "--cost_fn",
-        type=int,
-        choices=range(1, 11),
-        default=10,
-        help="Cost of a false negative (1-10, default: 10)",
+        type=float,
+        default=5.0,
+        help="Cost of a false negative (only used if metric='cost').",
     )
 
-    # Parse arguments
     args = parser.parse_args()
 
-    # Convert selections
-    use_gpu = args.device == "gpu"
-    threshold_method = args.threshold  # "default", "pr_curve", or "cost_based"
-    cost_fp = args.cost_fp
-    cost_fn = args.cost_fn
+    params = {
+        "dataset_path": "ccfd/data/creditcard.csv",
+        "device": args.device,
+        "model": args.model,        
+        "ovs": args.ovs,
+        "model_folder": args.model_folder,
+        "results_folder": args.results_folder,
+        "metric": args.metric,
+        "cost_fp": args.cost_fp,
+        "cost_fn": args.cost_fn,
+    }
 
-    test_models_with_oversampling(
-        dataset_path, use_gpu, threshold_method, cost_fp, cost_fn
-    )
+    test_models(params)

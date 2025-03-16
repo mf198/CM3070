@@ -6,7 +6,7 @@ import xgboost as xgb
 import joblib
 import os
 from sklearn.model_selection import StratifiedKFold
-from ccfd.evaluation.evaluate_models import evaluate_model
+from ccfd.evaluation.evaluate_models import evaluate_model_metric
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.time_performance import save_time_performance
 from ccfd.utils.timer import Timer
@@ -110,7 +110,7 @@ def objective_xgboost(trial, X_train, y_train, train_params):
         y_val_fold = to_numpy_safe(y_val_fold)
 
         # Evaluate the model using the specified metric
-        evaluation_score = evaluate_model(y_val_fold, y_proba, train_params)
+        evaluation_score = evaluate_model_metric(y_val_fold, y_proba, train_params)
 
         evaluation_scores.append(evaluation_score)
 
@@ -165,6 +165,7 @@ def optimize_xgboost(
     )
 
     print(f"🔥 Best XGBoost Parameters ({metric}):", study.best_params)
+    print(f"🔥 Best XGBoost Value ({metric}):", study.best_value)
 
     # Convert full dataset to NumPy (required for XGBoost)
     X_train = to_numpy_safe(X_train)
@@ -183,6 +184,6 @@ def optimize_xgboost(
     print(f"✅ Best XGBoost model saved at: {save_path}")
 
    # Save training performance details to CSV
-    save_time_performance(train_params, elapsed_time)    
+    save_time_performance(train_params, study.best_value, elapsed_time)
 
     return study.best_params

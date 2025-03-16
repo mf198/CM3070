@@ -8,7 +8,7 @@ import os
 from sklearn.model_selection import StratifiedKFold
 from cuml.ensemble import RandomForestClassifier as cuRandomForestClassifier
 from sklearn.ensemble import RandomForestClassifier as skRandomForestClassifier
-from ccfd.evaluation.evaluate_models import evaluate_model
+from ccfd.evaluation.evaluate_models import evaluate_model_metric
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.time_performance import save_time_performance
 from ccfd.utils.timer import Timer
@@ -89,7 +89,7 @@ def objective_random_forest(trial, X_train, y_train, train_params):
         y_val_fold = to_numpy_safe(y_val_fold)
 
         # Evaluate the model using the specified metric
-        evaluation_score = evaluate_model(y_val_fold, y_proba, train_params)        
+        evaluation_score = evaluate_model_metric(y_val_fold, y_proba, train_params)        
 
         evaluation_scores.append(evaluation_score)
 
@@ -142,6 +142,7 @@ def optimize_random_forest(
     )
 
     print("🔥 Best Random Forest Parameters:", study.best_params)
+    print(f"🔥 Best Random Forest Value ({metric}):", study.best_value)
 
     # Retrain the best model using the full dataset
     if use_gpu:
@@ -161,6 +162,6 @@ def optimize_random_forest(
     print(f"✅ Best Random Forest model saved at: {save_path}")
 
    # Save training performance details to CSV
-    save_time_performance(train_params, elapsed_time)    
+    save_time_performance(train_params, study.best_value, elapsed_time)
 
     return study.best_params

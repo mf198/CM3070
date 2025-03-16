@@ -21,11 +21,11 @@ from ccfd.data.balancer import (
 )
 
 # Import dataset and preprocessing functions
-from ccfd.data.dataset import load_dataset
+from ccfd.data.dataset import load_dataset, prepare_data
 from ccfd.data.preprocess import clean_dataset
 
 
-def prepare_data(df, target_column: str = "Class", use_gpu: bool = False):
+def eeeprepare_data(df, target_column: str = "Class", use_gpu: bool = False):
     """
     Splits the dataset into training and test sets. Converts to cuDF if GPU is enabled.
 
@@ -114,7 +114,7 @@ def optimize_model(train_params: dict):
 
     if model in ["lr", "all"]:
         print("\n🚀 Running Logistic Regression optimization...")
-        best_lr_params = optimize_logistic_regression(X_train, y_train, params)
+        best_lr_params = optimize_logistic_regression(X_train, y_train, train_params)
         results["LogisticRegression"] = best_lr_params
         print(f"🎯 Best Logistic Regression Parameters: {best_lr_params}")
 

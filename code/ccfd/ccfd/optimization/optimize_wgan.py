@@ -285,6 +285,7 @@ def optimize_wgan(X_train, y_train, train_params):
     )
 
     print("✅ Best Parameters for WGAN:", study.best_params)
+    print("🔥 Best Value for WGAN:", study.best_value)
 
     # Re-train best WGAN with found parameters
     best_params = study.best_params
@@ -303,5 +304,8 @@ def optimize_wgan(X_train, y_train, train_params):
     }, save_path)
 
     print(f"🎯 Best WGAN model saved at: {save_path}")
+
+    # Save training performance details to CSV
+    save_time_performance(train_params, study.best_value, elapsed_time)
 
     return best_params

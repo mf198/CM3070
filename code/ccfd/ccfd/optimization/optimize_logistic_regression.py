@@ -7,7 +7,7 @@ import os
 from sklearn.model_selection import StratifiedKFold
 from cuml.linear_model import LogisticRegression as cuLogisticRegression
 from sklearn.linear_model import LogisticRegression as skLogisticRegression
-from ccfd.evaluation.evaluate_models import evaluate_model
+from ccfd.evaluation.evaluate_models import evaluate_model_metric
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.time_performance import save_time_performance
 from ccfd.utils.timer import Timer
@@ -96,7 +96,7 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
         y_val_fold = to_numpy_safe(y_val_fold)
 
         # Evaluate the model using the specified metric
-        evaluation_score = evaluate_model(y_val_fold, y_proba, train_params)
+        evaluation_score = evaluate_model_metric(y_val_fold, y_proba, train_params)
 
         evaluation_scores.append(evaluation_score)
 
@@ -150,6 +150,7 @@ def optimize_logistic_regression(
     )
 
     print(f"🔥 Best Logistic Regression Parameters ({metric}):", study.best_params)
+    print(f"🔥 Best Logistic Regression Value ({metric}):", study.best_value)
 
     # Retrain the best model using the full dataset
     best_model = cuLogisticRegression(**study.best_params) if use_gpu else skLogisticRegression(**study.best_params)
@@ -166,6 +167,6 @@ def optimize_logistic_regression(
     print(f"✅ Best Logistic Regression model saved at: {save_path}")
 
    # Save training performance details to CSV
-    save_time_performance(train_params, elapsed_time)    
+    save_time_performance(train_params, study.best_value, elapsed_time)
 
     return study.best_params
