@@ -16,67 +16,11 @@ V 3. split the dataset so that the percentage of frauds is balanced (added strat
 
 12. Check why wgan is so slow even with gpu
 
-python -m scripts.train_models --device gpu --model knn --ovs gan --output_folder ccfd/pretrained_models --metric prauc --trials 100 --jobs 4
-python -m scripts.train_models --device gpu --model knn --ovs wgan --output_folder ccfd/pretrained_models --metric prauc --trials 100 --jobs 4
-python -m scripts.train_models --device gpu --model knn --ovs adasyn --output_folder ccfd/pretrained_models --metric prauc --trials 100 --jobs 4
-python -m scripts.train_models --device gpu --model knn --ovs svm-smote --output_folder ccfd/pretrained_models --metric prauc --trials 100 --jobs 4
 
-smote       [I 2025-03-11 18:35:49,029], [I 2025-03-11 18:42:29,863]    0.6839662399660338.
-gan         [I 2025-03-11 21:38:52,878], [I 2025-03-11 21:44:49,223]    0.8099033216349059.
-wgan        [I 2025-03-11 21:44:53,986], [I 2025-03-11 21:50:50,307]    0.8095022826196352.
-adasyn      [I 2025-03-11 21:50:55,134], [I 2025-03-11 21:57:21,038]    0.6462168065715039.
-svm-smote   [I 2025-03-11 22:01:48,044], 
-
-python -m scripts.train_models --device gpu --model knn --ovs gan --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs wgan --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs adasyn --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs smote --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs gan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs wgan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs adasyn --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs smote --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs gan --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs wgan --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs adasyn --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model knn --ovs smote --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-
-python -m scripts.train_models --device gpu --model lr --ovs gan --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs wgan --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs adasyn --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs smote --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs gan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs wgan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs adasyn --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs smote --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs gan --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs wgan --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs adasyn --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model lr --ovs smote --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-
-python -m scripts.train_models --device gpu --model rf --ovs gan --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs wgan --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs adasyn --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs smote --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs gan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs wgan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs adasyn --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs smote --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs gan --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs wgan --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs adasyn --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model rf --ovs smote --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-
-python -m scripts.train_models --device gpu --model xgboost --ovs gan --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs wgan --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs adasyn --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs smote --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs gan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs wgan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs adasyn --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs smote --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs gan --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs wgan --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs adasyn --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-python -m scripts.train_models --device gpu --model xgboost --ovs smote --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 4 
-
-
+New testing functions allows:
+Single Model, Single Oversampling, Single Metric
+Single Model, Single Oversampling, All Metrics
+Single Model, All Oversampling, Single Metric
+Single Model, All Oversampling, All Metrics
+All Models, Single Oversampling, Single Metric
+All Models, All Oversampling, All Metrics

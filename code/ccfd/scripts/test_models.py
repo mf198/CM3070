@@ -16,6 +16,7 @@ from cuml.model_selection import train_test_split as cuml_train_test_split
 from ccfd.evaluation.evaluate_models import evaluate_model
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.timer import Timer
+from datetime import datetime
 import joblib
 import gc
 
@@ -83,7 +84,9 @@ def test_models(params):
     selected_models = [params["model"]] if params["model"] in model_list else model_list
 
     # Determine selected metrics
-    selected_metrics = [params["metric"]] if params["metric"] in metric_list else metric_list
+    selected_metrics = (
+        [params["metric"]] if params["metric"] in metric_list else metric_list
+    )
 
     # Determine selected oversampling methods
     selected_ovs = [params["ovs"]] if params["ovs"] in ovs_list else ovs_list
@@ -92,7 +95,9 @@ def test_models(params):
     for model_name in selected_models:
         for ovs in selected_ovs:
             for metric in selected_metrics:
-                model_filename = f"{params['model_folder']}/pt_{model_name}_{ovs}_{metric}.pkl"
+                model_filename = (
+                    f"{params['model_folder']}/pt_{model_name}_{ovs}_{metric}.pkl"
+                )
                 print(
                     f"\n🚀 Loading pre-trained {model_name} optimized for {metric} using {ovs}..."
                 )
@@ -137,8 +142,15 @@ def test_models(params):
                 del model
                 gc.collect()
 
+    # Construct the filename with a timestamp
+    timestamp_str = datetime.now().strftime("%Y_%m_%d")
+    model_name = params["model"]
+    ovs = params["ovs"]
+    metric = params["metric"]
+    output_file = f"{params["results_folder"]}/models_test_{model_name}_{ovs}_{metric}_{timestamp_str}.csv"
+
     results_df = pd.DataFrame(results)
-    results_df.to_csv(f"{params['results_folder']}/models_results.csv", index=False)
+    results_df.to_csv(output_file, index=False)
 
     if use_gpu:
         gpu_monitor.close()
@@ -184,6 +196,18 @@ if __name__ == "__main__":
         help="Evaluation metric to optimize.",
     )
     parser.add_argument(
+        "--eval_method",
+        choices=["pr_curve", "cost_based", "default"],
+        default="default",
+        help="Evaluation method to use.",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,        
+        default=0.5,
+        help="Threshold value for evaluation.",
+    )        
+    parser.add_argument(
         "--cost_fp",
         type=float,
         default=1.0,
@@ -201,11 +225,13 @@ if __name__ == "__main__":
     params = {
         "dataset_path": "ccfd/data/creditcard.csv",
         "device": args.device,
-        "model": args.model,        
+        "model": args.model,
         "ovs": args.ovs,
         "model_folder": args.model_folder,
         "results_folder": args.results_folder,
         "metric": args.metric,
+        "eval_method": args.eval_method,
+        "threshold": args.threshold,
         "cost_fp": args.cost_fp,
         "cost_fn": args.cost_fn,
     }
