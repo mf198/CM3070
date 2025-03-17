@@ -139,18 +139,20 @@ def optimize_xgboost(
         dict: The best hyperparameters found for XGBoost.
     """
     timer = Timer()
-
-    use_gpu = train_params["device"] == "gpu"
-    n_trials = train_params["trials"]
+    
     metric = train_params["metric"]
+    model_name = train_params["model"]
+    n_trials = train_params["trials"]
     n_jobs = train_params["jobs"]
+    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"    
     output_folder = train_params["output_folder"]
 
     # Ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
     # Define model save path dynamically
-    save_path = os.path.join(output_folder, "pt_xbgoost.pkl")    
+    model_filename = f"pt_{model_name}_{ovs_name}_{metric}.pkl"
+    model_path = os.path.join(train_params["output_folder"], model_filename)
 
     # Start the timer to calculate training time
     timer.start()
@@ -180,8 +182,8 @@ def optimize_xgboost(
     print(f"📊 Total training time: {elapsed_time}")
 
     # Save the best model
-    joblib.dump(best_model, save_path)
-    print(f"✅ Best XGBoost model saved at: {save_path}")
+    joblib.dump(best_model, model_path)
+    print(f"✅ Best XGBoost model saved at: {model_path}")
 
    # Save training performance details to CSV
     save_time_performance(train_params, study.best_value, elapsed_time)

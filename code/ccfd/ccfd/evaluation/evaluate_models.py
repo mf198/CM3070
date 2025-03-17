@@ -16,7 +16,6 @@ from sklearn.metrics import (
 from typing import Dict, Optional
 from ccfd.evaluation.threshold_analysis import compute_curve_values, find_best_threshold
 from ccfd.evaluation.save_curves import save_selected_curve
-from ccfd.evaluation.curve_based_methods import find_best_threshold_cost, find_best_threshold_pr
 
 
 def compute_metrics(
@@ -147,11 +146,8 @@ def evaluate_model_cpu(
     return compute_metrics(y_test, y_pred, y_proba, best_threshold, False)
 
 
-def evaluate_model(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    y_proba: np.ndarray,
-    test_params: Dict
+def evaluate_model_current(
+    y_true: np.ndarray, y_pred: np.ndarray, y_proba: np.ndarray, test_params: Dict
 ) -> Dict[str, float]:
     """
     Evaluates model performance based on the chosen metric.
@@ -189,6 +185,69 @@ def evaluate_model(
 
 
 ###
+
+
+def evaluate_model(
+    y_true: np.ndarray, y_pred: np.ndarray, y_proba: np.ndarray, test_params: Dict
+) -> Dict[str, float]:
+    """
+    Evaluates model performance based on the chosen metric.
+
+    Args:
+        y_true (np.ndarray): True labels as a NumPy array.
+        y_pred (array-like): Predicted labels.
+        y_proba (array-like): Predicted probabilities for the positive class.
+        test_params (dict): Dictionary containing evaluation parameters, including:
+            - "threshold" (float, optional): Fixed threshold for classification.
+            - "threshold_method" (str): Threshold selection method ("default", "pr_curve", "cost_based").
+            - "cost_fp" (float): Cost of a false positive (for cost-based optimization).
+            - "cost_fn" (float): Cost of a false negative (for cost-based optimization).
+            - "use_gpu" (bool): If True, uses GPU (cuML/cudf), otherwise uses CPU (sklearn/pandas).
+
+    Returns:
+        Dict[str, float]: Dictionary containing evaluation metrics.
+    """
+    use_gpu = test_params.get("device", False) == "gpu"
+    eval_method = test_params.get("eval_method", "default")
+    cost_fp = test_params.get("cost_fp", 1)
+    cost_fn = test_params.get("cost_fn", 3)
+
+    # Check if a fixed threshold is provided    
+    if "threshold" in test_params and test_params["threshold"] is not None:
+        best_threshold = test_params["threshold"]
+        threshold_source = "manual override"
+
+    elif eval_method == "pr_curve":
+        # Compute Precision-Recall Curve
+        precision, recall, thresholds = precision_recall_curve(y_true, y_proba)
+        best_threshold = find_best_threshold(
+            precision, recall, thresholds, curve_type="pr_curve"
+        )
+        threshold_source = "PR curve optimization"
+
+    elif eval_method == "cost_based":
+        # Compute Precision-Recall Curve
+        precision, recall, thresholds = precision_recall_curve(y_true, y_proba)
+
+        # Compute Cost-Based Metric
+        cost_metric = (cost_fp * (1 - precision)) + (cost_fn * (1 - recall))
+
+        best_threshold = find_best_threshold(
+            cost_metric, [], thresholds, curve_type="cost_based"
+        )
+        threshold_source = "cost-based optimization"
+
+    else:
+        best_threshold = 0.5  # Default threshold
+        threshold_source = "default (0.5)"
+
+    print(f"🔍 Using threshold: {best_threshold:.4f} ({threshold_source})")
+
+    # Apply the Threshold to Convert Probabilities into Binary Labels
+    y_pred_adjusted = (y_proba >= best_threshold).astype(int)
+
+    # Return evaluation metrics
+    return compute_metrics(y_true, y_pred_adjusted, y_proba, best_threshold, use_gpu)
 
 
 def evaluate_model_metric(y_true, y_pred, train_params):
