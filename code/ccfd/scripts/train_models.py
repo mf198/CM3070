@@ -203,7 +203,7 @@ if __name__ == "__main__":
         type=str,
         default="results",
         help="Folder where training results will be saved.",
-    )    
+    )
     parser.add_argument(
         "--metric",
         choices=["prauc", "f1", "precision", "recall", "cost"],

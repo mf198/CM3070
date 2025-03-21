@@ -5,7 +5,7 @@ import numpy as np
 import optuna
 import joblib
 import os
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, TensorDataset
 import cudf
@@ -35,8 +35,12 @@ def objective_autoencoder(trial, X_train, train_params):
     epochs = trial.suggest_int("epochs", 10, 50)
 
     # Convert DataFrame to NumPy and normalize
-    X_train = X_train.to_pandas() if isinstance(X_train, cudf.DataFrame) else X_train
-    scaler = MinMaxScaler()
+    if isinstance(X_train, cudf.DataFrame):
+        X_train = X_train.to_pandas().values
+    else:
+        X_train = X_train.values
+
+    scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
 
     # 5-Fold Cross-Validation
@@ -70,7 +74,7 @@ def objective_autoencoder(trial, X_train, train_params):
                 optimizer.step()
 
         # Evaluate on validation set
-        model.eval()
+        model.eval()  # ✅ Ensure dropout & batchnorm are disabled
         with torch.no_grad():
             reconstructed = model(X_val_tensor)
             reconstruction_error = torch.mean((X_val_tensor - reconstructed) ** 2, dim=1).cpu().numpy()
@@ -78,6 +82,7 @@ def objective_autoencoder(trial, X_train, train_params):
         fold_errors.append(np.mean(reconstruction_error))
 
     return np.mean(fold_errors)
+
 
 def optimize_autoencoder(X_train, train_params):
     """
@@ -100,8 +105,8 @@ def optimize_autoencoder(X_train, train_params):
     os.makedirs(output_folder, exist_ok=True)
 
     # Define model save path
-    model_filename = "pt_autoencoder.pkl"
-    scaler_filename = "scaler.pkl"
+    model_filename = "pt_autoencoder.pth"
+    scaler_filename = "pt_autoencoder_scaler.pkl"
     model_path = os.path.join(train_params["output_folder"], model_filename)
     scaler_path = os.path.join(train_params["output_folder"], scaler_filename)
 
@@ -123,8 +128,13 @@ def optimize_autoencoder(X_train, train_params):
     epochs = best_params["epochs"]
 
     # Convert DataFrame to NumPy and normalize
-    scaler = MinMaxScaler()
-    X_train_scaled = scaler.fit_transform(X_train.to_pandas().values if isinstance(X_train, cudf.DataFrame) else X_train.values)
+    if isinstance(X_train, cudf.DataFrame):
+        X_train = X_train.to_pandas().values
+    else:
+        X_train = X_train.values
+
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
 
     # Convert to PyTorch tensors
     device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
@@ -140,7 +150,6 @@ def optimize_autoencoder(X_train, train_params):
     print("\n🚀 Retraining the best Autoencoder with optimal parameters...")
     best_model.train()
     for epoch in range(epochs):
-        total_loss = 0
         for batch in train_loader:
             batch = batch[0].to(device)
             optimizer.zero_grad()
@@ -148,15 +157,19 @@ def optimize_autoencoder(X_train, train_params):
             loss = criterion(reconstructed, batch)
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
-        print(f"Epoch [{epoch+1}/{epochs}], Loss: {total_loss:.6f}")
 
     print("\n✅ Best Autoencoder retrained successfully!")
 
-    # Save the best model
-    joblib.dump(best_model, model_path)
+    # Save model with input and latent dim
+    torch.save(best_model.state_dict(), model_path)
+    torch.save({
+        "model_state_dict": best_model.state_dict(),
+        "input_dim": X_train.shape[1],
+        "latent_dim": latent_dim
+    }, model_path)
+
     joblib.dump(scaler, scaler_path)
-    print(f"✅ Best Autoencoder model saved at: {model_path}")
+    print(f"✅ Model saved at: {model_path}")
     print(f"✅ Scaler saved at: {scaler_path}")
 
     # Save training performance details
