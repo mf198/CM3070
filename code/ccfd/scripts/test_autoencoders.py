@@ -34,7 +34,7 @@ def load_model(model_path, scaler_path, device, model_type):
     Returns:
         tuple: (model, scaler)
     """
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=True)
     input_dim = checkpoint["input_dim"]
     latent_dim = checkpoint["latent_dim"]
 
@@ -50,7 +50,7 @@ def load_model(model_path, scaler_path, device, model_type):
 
     scaler = joblib.load(scaler_path)
 
-    print(f"✅ Loaded {model.upper()} model from {model_path}")
+    print(f"✅ Loaded {model_type.upper()} model from {model_path}")
     print(f"✅ Loaded Scaler from {scaler_path}")
     return model, scaler
 

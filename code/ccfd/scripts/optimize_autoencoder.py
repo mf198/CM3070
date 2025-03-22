@@ -10,6 +10,12 @@ from ccfd.data.dataset import load_dataset
 from ccfd.data.preprocess import clean_dataset
 
 
+from ccfd.data.dataset import load_dataset, prepare_data
+from ccfd.data.preprocess import clean_dataset
+from ccfd.optimization.optimize_ae import optimize_autoencoder
+from ccfd.optimization.optimize_vae import optimize_vae
+
+
 def optimize_model_pipeline(train_params: dict):
     """
     Runs Optuna optimization for Autoencoder or VAE based on `model`.
@@ -26,8 +32,19 @@ def optimize_model_pipeline(train_params: dict):
     df = load_dataset(dataset_path, use_gpu=use_gpu)
     df = clean_dataset(df, use_gpu=use_gpu)
 
-    # Drop target column for unsupervised training
-    X_train = df.drop(columns=["Class"])
+    # Split into train and test (stratified)
+    print("\n✂️ Splitting dataset with prepare_data...")
+    X_train, X_test, y_train, y_test = prepare_data(
+        df, target_column="Class", use_gpu=use_gpu
+    )
+
+    # Filter out frauds for training (only normal data)
+    print("\n🚫 Removing fraud samples from training set...")
+    normal_train_mask = (y_train == 0).values if not use_gpu else (y_train == 0)
+    X_train = X_train[normal_train_mask]
+
+    # Pass full labels (before filtering) for PR AUC validation
+    train_params["y_train"] = y_test  # PR AUC eval is on test set
 
     # Run model-specific optimization
     if model == "vae":
@@ -41,14 +58,13 @@ def optimize_model_pipeline(train_params: dict):
 
     print(f"🎯 Best {model.upper()} Parameters: {best_params}")
 
-    # Save the best hyperparameters
+    # Save best hyperparameters
     results_df = pd.DataFrame([best_params])
     results_filepath = f"{output_folder}/{filename_prefix}_params.csv"
     results_df.to_csv(results_filepath, index=False)
 
-    print(
-        f"\n✅ Best {model.upper()} hyperparameters saved to '{results_filepath}'."
-    )
+    print(f"\n✅ Best {model.upper()} hyperparameters saved to '{results_filepath}'.")
+###
 
 
 if __name__ == "__main__":
@@ -61,9 +77,7 @@ if __name__ == "__main__":
     parser.add_argument("--jobs", type=int, default=-1)
     parser.add_argument("--output_folder", type=str, default="ccfd/pretrained_models")
     parser.add_argument("--results_folder", type=str, default="results")
-    parser.add_argument(
-        "--model", choices=["ae", "vae"], default="ae"
-    )
+    parser.add_argument("--model", choices=["ae", "vae"], default="ae")
     parser.add_argument("--dataset", type=str, default="ccfd/data/creditcard.csv")
 
     args = parser.parse_args()
