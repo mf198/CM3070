@@ -25,39 +25,6 @@ from ccfd.data.dataset import load_dataset, prepare_data
 from ccfd.data.preprocess import clean_dataset
 
 
-def eeeprepare_data(df, target_column: str = "Class", use_gpu: bool = False):
-    """
-    Splits the dataset into training and test sets. Converts to cuDF if GPU is enabled.
-
-    Args:
-        df (pd.DataFrame): Input dataset (always loaded in pandas).
-        target_column (str): Name of the target column.
-        use_gpu (bool): If True, converts df to cuDF and uses cuML's train-test split.
-
-    Returns:
-        Tuple: (df_train, df_test) as pandas or cuDF DataFrames/Series.
-    """
-    if use_gpu:
-        print("🚀 Converting dataset to cuDF for GPU acceleration...")
-
-        if isinstance(df, pd.DataFrame):
-            df = cudf.from_pandas(df)
-
-        # Check that X and y are compatible with cuML
-        X = df.drop(columns=[target_column]).astype("float32")
-        y = df[target_column].astype("int32")
-
-        # Stratify balances the fraud records in train and test data
-        return cuml_train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
-    else:
-        print("📄 Using pandas for CPU-based train-test split...")
-
-        X = df.drop(columns=[target_column])  # Features
-        y = df[target_column]  # Labels
-
-        return train_test_split(X, y, stratify=y, test_size=0.2, random_state=42)
-
-
 def optimize_model(train_params: dict):
     """
     Runs Optuna optimization for GAN, WGAN, and ML models using a parameter dictionary.
@@ -89,9 +56,11 @@ def optimize_model(train_params: dict):
     model = train_params["model"]
     oversampling_method = train_params.get("ovs", None)  # Might be None
     output_folder = train_params["output_folder"]
-    
+
     # Store the selected oversampling function in train_params
-    train_params["oversampling_function"] = oversampling_methods.get(oversampling_method, None)
+    train_params["oversampling_function"] = oversampling_methods.get(
+        oversampling_method, None
+    )
 
     # Load dataset
     df = load_dataset(dataset_path, use_gpu)
@@ -99,49 +68,50 @@ def optimize_model(train_params: dict):
     # Clean the dataset
     df = clean_dataset(df, use_gpu)
 
-    # Split data before optimization
-    print("\n✂️ Splitting dataset into train and test sets...")
+    # Split data before optimization    
     X_train, X_test, y_train, y_test = prepare_data(df, use_gpu=use_gpu)
 
     results = {}
 
     ### **Machine Learning Models Optimization**
     if model in ["knn", "all"]:
-        print("\n🚀 Running KNN optimization...")
+        print("\nRunning KNN optimization...")
         best_knn_params = optimize_knn(X_train, y_train, train_params)
         results["KNN"] = best_knn_params
-        print(f"🎯 Best KNN Parameters: {best_knn_params}")
+        print(f"Best KNN Parameters: {best_knn_params}")
 
     if model in ["lr", "all"]:
-        print("\n🚀 Running Logistic Regression optimization...")
+        print("\nRunning Logistic Regression optimization...")
         best_lr_params = optimize_logistic_regression(X_train, y_train, train_params)
         results["LogisticRegression"] = best_lr_params
-        print(f"🎯 Best Logistic Regression Parameters: {best_lr_params}")
+        print(f"Best Logistic Regression Parameters: {best_lr_params}")
 
     if model in ["rf", "all"]:
-        print("\n🚀 Running Random Forest optimization...")
+        print("\nRunning Random Forest optimization...")
         best_rf_params = optimize_random_forest(X_train, y_train, train_params)
         results["RandomForest"] = best_rf_params
-        print(f"🎯 Best Random Forest Parameters: {best_rf_params}")
+        print(f"Best Random Forest Parameters: {best_rf_params}")
 
     if model in ["sgd", "all"]:
-        print("\n🚀 Running SGD optimization...")
+        print("\nRunning SGD optimization...")
         best_sgd_params = optimize_sgd(X_train, y_train, train_params)
         results["SGD"] = best_sgd_params
-        print(f"🎯 Best SGD Parameters: {best_sgd_params}")
+        print(f"Best SGD Parameters: {best_sgd_params}")
 
     if model in ["xgboost", "all"]:
-        print("\n🚀 Running XGBoost optimization...")
+        print("\nRunning XGBoost optimization...")
         best_xgb_params = optimize_xgboost(X_train, y_train, train_params)
         results["XGBoost"] = best_xgb_params
-        print(f"🎯 Best XGBoost Parameters: {best_xgb_params}")
+        print(f"Best XGBoost Parameters: {best_xgb_params}")
 
-    # **Save results to CSV**
+    # Save results to CSV
     results_df = pd.DataFrame(results)
     results_filepath = f"{output_folder}/pt_model_params.csv"
     results_df.to_csv(results_filepath, index=False)
 
-    print(f"\n✅ Best hyperparameters saved to '{results_filepath}'.")
+    print(f"\nBest hyperparameters saved to '{results_filepath}'.")
+
+
 ###
 
 if __name__ == "__main__":
@@ -253,11 +223,11 @@ if __name__ == "__main__":
         "cost_fp": cost_fp,
         "cost_fn": cost_fn,
         "output_folder": output_folder,
-        "results_folder": results_folder
+        "results_folder": results_folder,
     }
 
     # Print experiment setup
-    print(f"🔍 Training model(s) with parameters: {params}")
+    print(f"Training model(s) with parameters: {params}")
 
     # Ensure output folder exists
     os.makedirs(output_folder, exist_ok=True)
@@ -267,7 +237,7 @@ if __name__ == "__main__":
     with open(config_path, "w") as f:
         json.dump(params, f, indent=4)
 
-    print(f"📁 Experiment configuration saved at: {config_path}")
+    print(f"Experiment configuration saved at: {config_path}")
 
     # Run optimization
     optimize_model(params)

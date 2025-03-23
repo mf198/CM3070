@@ -1,5 +1,4 @@
 import optuna
-import cudf
 import cupy as cp
 import numpy as np
 import joblib
@@ -12,9 +11,11 @@ from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.time_performance import save_time_performance
 from ccfd.utils.timer import Timer
 
+
 def sigmoid(x):
     """Computes sigmoid activation to map logits to probabilities."""
     return 1 / (1 + np.exp(-x))
+
 
 def objective_logistic_regression(trial, X_train, y_train, train_params):
     """
@@ -40,7 +41,10 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
     if use_gpu:
         solver = "qn"  # cuML only supports 'qn'
     else:
-        solver = trial.suggest_categorical("solver", ["lbfgs", "liblinear", "saga", "sag", "newton-cg", "newton-cholesky"])
+        solver = trial.suggest_categorical(
+            "solver",
+            ["lbfgs", "liblinear", "saga", "sag", "newton-cg", "newton-cholesky"],
+        )
 
     params = {
         "penalty": "l2",
@@ -49,7 +53,9 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
         "max_iter": trial.suggest_int("max_iter", 100, 500, step=100),
     }
 
-    model = cuLogisticRegression(**params) if use_gpu else skLogisticRegression(**params)
+    model = (
+        cuLogisticRegression(**params) if use_gpu else skLogisticRegression(**params)
+    )
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     evaluation_scores = []
@@ -78,7 +84,9 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
 
         # Apply an oversampling method if selected
         if ovs_function:
-            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(X_train_fold, y_train_fold, use_gpu)
+            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(
+                X_train_fold, y_train_fold, use_gpu
+            )
         else:
             X_train_fold_oversampled = X_train_fold
             y_train_fold_oversampled = y_train_fold
@@ -88,10 +96,10 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
 
         # Predict probabilities
         y_proba = model.predict_proba(X_val_fold)
-        
+
         # Convert to numpy and extract result
         y_proba = to_numpy_safe(y_proba)[:, 1]
-        
+
         # Ensure y_val_fold is also a NumPy array before evaluation
         y_val_fold = to_numpy_safe(y_val_fold)
 
@@ -103,8 +111,7 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
     return np.mean(evaluation_scores)  # Optuna optimizes based on the selected metric
 
 
-def optimize_logistic_regression(
-    X_train, y_train, train_params):
+def optimize_logistic_regression(X_train, y_train, train_params):
     """
     Runs Optuna optimization for Logistic Regression.
 
@@ -130,43 +137,49 @@ def optimize_logistic_regression(
     model_name = train_params["model"]
     n_trials = train_params["trials"]
     n_jobs = train_params["jobs"]
-    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"    
+    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"
     output_folder = train_params["output_folder"]
 
     # Ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
-    # Define model save path dynamically
     save_filename = f"pt_{model_name}_{ovs_name}_{metric}.pkl"
     save_path = os.path.join(train_params["output_folder"], save_filename)
 
     # Start the timer to calculate training time
     timer.start()
 
-    study = optuna.create_study(direction="maximize", pruner=optuna.pruners.MedianPruner())
-    study.optimize(lambda trial: objective_logistic_regression(trial, X_train, y_train, train_params),
+    study = optuna.create_study(
+        direction="maximize", pruner=optuna.pruners.MedianPruner()
+    )
+    study.optimize(
+        lambda trial: objective_logistic_regression(
+            trial, X_train, y_train, train_params
+        ),
         n_trials=n_trials,
         n_jobs=n_jobs,
     )
 
-    print(f"🔥 Best Logistic Regression Parameters ({metric}):", study.best_params)
-    print(f"🔥 Best Logistic Regression Value ({metric}):", study.best_value)
+    print(f"Best Logistic Regression Parameters ({metric}):", study.best_params)
+    print(f"Best Logistic Regression Value ({metric}):", study.best_value)
 
-    # Retrain the best model using the full dataset
-    best_model = cuLogisticRegression(**study.best_params) if use_gpu else skLogisticRegression(**study.best_params)
-
-    # Model fit
-    best_model.fit(X_train, y_train)  # Keep cuDF format    
+    # Retrain the best model
+    best_model = (
+        cuLogisticRegression(**study.best_params)
+        if use_gpu
+        else skLogisticRegression(**study.best_params)
+    )
+    best_model.fit(X_train, y_train)  # Keep cuDF format
 
     # Total execution time
     elapsed_time = round(timer.elapsed_final(), 2)
-    print(f"📊 Total training time: {elapsed_time}")
+    print(f"Total training time: {elapsed_time}")
 
     # Save the best model
     joblib.dump(best_model, save_path)
-    print(f"✅ Best Logistic Regression model saved at: {save_path}")
+    print(f"Best Logistic Regression model saved at: {save_path}")
 
-   # Save training performance details to CSV
+    # Save training performance details to CSV
     save_time_performance(train_params, study.best_value, elapsed_time)
 
     return study.best_params

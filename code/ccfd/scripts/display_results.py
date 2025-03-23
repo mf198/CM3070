@@ -23,16 +23,16 @@ def display_results(filepath, use_gpu=True, sort_column=None, ascending=False):
             if sort_column in df.columns:
                 df = df.sort_values(by=sort_column, ascending=ascending)
             else:
-                print(f"⚠️ Warning: Column '{sort_column}' not found. Displaying unsorted results.")
+                print(f"Warning: Column '{sort_column}' not found. Displaying unsorted results.")
 
         df = df.reset_index(drop=True)
 
         # Display results
-        print("\n📊 Results:")
+        print("\nResults:")
         print(df)
 
     except FileNotFoundError:
-        print(f"❌ Error: {filepath} not found. Please check the file path.")
+        print(f"Error: {filepath} not found. Please check the file path.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Display model evaluation results from CSV.")

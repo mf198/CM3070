@@ -34,13 +34,12 @@ def aaaprepare_data(df, target_column: str = "Class", use_gpu: bool = False):
         Tuple: (df_train, df_test) as pandas or cuDF DataFrames/Series.
     """
     if use_gpu:
-        print("🚀 Converting dataset to cuDF for GPU acceleration...")
         df = cudf.DataFrame(df)
 
         # Use cuML's GPU-based train-test split
         return cuml_train_test_split(df, test_size=0.3, random_state=42)
     else:
-        print("📄 Using pandas for CPU-based train-test split...")
+        print("Using pandas for CPU-based train-test split...")
         return train_test_split(df, test_size=0.2, random_state=42)
 
 
@@ -56,7 +55,7 @@ def test_models(params):
     """
     timer = Timer()
 
-    print(f"\n📌 Loading dataset...")
+    print(f"\nLoading dataset...")
     df = load_dataset(params["dataset_path"])
 
     results = []
@@ -68,8 +67,7 @@ def test_models(params):
     model_monitor = ModelTensorBoardLogger(log_dir="runs/model_monitor")
 
     df = clean_dataset(df)
-
-    print("\n✂️ Splitting dataset into train and test sets...")
+    
     _, X_test, _, y_test = prepare_data(df, use_gpu=use_gpu)
 
     # Convert to NumPy for compatibility
@@ -99,14 +97,14 @@ def test_models(params):
                     f"{params['model_folder']}/pt_{model_name}_{ovs}_{metric}.pkl"
                 )
                 print(
-                    f"\n🚀 Loading pre-trained {model_name} optimized for {metric} using {ovs}..."
+                    f"\nLoading pre-trained {model_name} optimized for {metric} using {ovs}..."
                 )
 
                 try:
                     model = joblib.load(model_filename)
-                    print(f"✅ Loaded model from {model_filename}")
+                    print(f"Loaded model from {model_filename}")
                 except FileNotFoundError:
-                    print(f"⚠️ Model file {model_filename} not found. Skipping...")
+                    print(f"Model file {model_filename} not found. Skipping...")
                     continue
 
                 # Get discrete predictions

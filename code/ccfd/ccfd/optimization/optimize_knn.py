@@ -1,8 +1,6 @@
 import optuna
-import cudf
 import cupy as cp
 import numpy as np
-import pandas as pd
 import joblib
 import os
 from sklearn.model_selection import StratifiedKFold
@@ -12,6 +10,7 @@ from ccfd.evaluation.evaluate_models import evaluate_model_metric
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.time_performance import save_time_performance
 from ccfd.utils.timer import Timer
+
 
 def objective_knn(trial, X_train, y_train, train_params):
     """
@@ -67,7 +66,9 @@ def objective_knn(trial, X_train, y_train, train_params):
 
         # Apply an oversampling method if selected
         if ovs_function:
-            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(X_train_fold, y_train_fold, use_gpu)
+            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(
+                X_train_fold, y_train_fold, use_gpu
+            )
         else:
             X_train_fold_oversampled = X_train_fold
             y_train_fold_oversampled = y_train_fold
@@ -89,7 +90,8 @@ def objective_knn(trial, X_train, y_train, train_params):
 
         evaluation_scores.append(evaluation_score)
 
-    return np.mean(evaluation_scores)    
+    return np.mean(evaluation_scores)
+
 
 def optimize_knn(X_train, y_train, train_params):
     """
@@ -104,7 +106,7 @@ def optimize_knn(X_train, y_train, train_params):
             - "metric" (str): Evaluation metric to optimize. Options: ["pr_auc", "f1", "precision", "cost"].
             - "cost_fp" (float, optional): Cost of a false positive (used if metric="cost").
             - "cost_fn" (float, optional): Cost of a false negative (used if metric="cost").
-            - "jobs" (int): Number of parallel jobs (-1 to use all available cores).        
+            - "jobs" (int): Number of parallel jobs (-1 to use all available cores).
 
     Returns:
         dict: The best hyperparameters found for KNN.
@@ -116,7 +118,7 @@ def optimize_knn(X_train, y_train, train_params):
     model_name = train_params["model"]
     n_trials = train_params["trials"]
     n_jobs = train_params["jobs"]
-    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"    
+    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"
     output_folder = train_params["output_folder"]
 
     # Ensure output directory exists
@@ -127,7 +129,7 @@ def optimize_knn(X_train, y_train, train_params):
     model_path = os.path.join(train_params["output_folder"], model_filename)
 
     # Start the timer to calculate training time
-    timer.start()    
+    timer.start()
 
     study = optuna.create_study(
         direction="maximize", pruner=optuna.pruners.MedianPruner()
@@ -138,24 +140,22 @@ def optimize_knn(X_train, y_train, train_params):
         n_jobs=n_jobs,
     )
 
-    print(f"🔥 Best KNN Parameters ({metric}):", study.best_params)
-    print(f"🔥 Best KNN Value ({metric}):", study.best_value)
+    print(f"Best KNN Parameters ({metric}):", study.best_params)
+    print(f"Best KNN Value ({metric}):", study.best_value)
 
     # Retrain the best model using the full dataset
     best_model = cuKNN(**study.best_params) if use_gpu else skKNN(**study.best_params)
-
-    # Data fit
     best_model.fit(X_train, y_train)
 
     # Total execution time
     elapsed_time = round(timer.elapsed_final(), 2)
-    print(f"📊 Total training time: {elapsed_time}")
-    
+    print(f"Total training time: {elapsed_time}")
+
     # Save the best model
     joblib.dump(best_model, model_path)
-    print(f"✅ Best KNN model saved at: {model_path}")
+    print(f"Best KNN model saved at: {model_path}")
 
-   # Save training performance details to CSV
+    # Save training performance details to CSV
     save_time_performance(train_params, study.best_value, elapsed_time)
 
     return study.best_params

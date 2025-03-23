@@ -28,8 +28,6 @@ def xxxprepare_data(df, target_column: str = "Class", use_gpu: bool = False):
         Tuple: (df_train, df_test) as pandas or cuDF DataFrames/Series.
     """
     if use_gpu:
-        print("🚀 Converting dataset to cuDF for GPU acceleration...")
-
         if isinstance(df, pd.DataFrame):
             df = cudf.from_pandas(df)
 
@@ -40,7 +38,7 @@ def xxxprepare_data(df, target_column: str = "Class", use_gpu: bool = False):
         # Stratify balances the fraud records in train and test data
         return cuml_train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
     else:
-        print("📄 Using pandas for CPU-based train-test split...")
+        print("Using pandas for CPU-based train-test split...")
 
         X = df.drop(columns=[target_column])  # Features
         y = df[target_column]  # Labels
@@ -66,7 +64,7 @@ def optimize_ovs(train_params: dict):
     # Extract parameters from dictionary
     dataset_path = train_params["dataset"]
     use_gpu = train_params["device"] == "gpu"
-    ovs = train_params["ovs"]    
+    ovs = train_params["ovs"]
     output_folder = train_params["output_folder"]
 
     # Load dataset
@@ -76,30 +74,29 @@ def optimize_ovs(train_params: dict):
     df = clean_dataset(df, use_gpu)
 
     # Split data before optimization
-    print("\n✂️ Splitting dataset into train and test sets...")
     X_train, X_test, y_train, y_test = prepare_data(df, use_gpu=use_gpu)
 
     results = {}
 
     ### **GAN / WGAN Optimization**
     if ovs in ["gan", "all"]:
-        print("\n🚀 Running GAN optimization...")
+        print("\nRunning GAN optimization...")
         best_gan_params = optimize_gan(X_train, y_train, train_params)
         results["GAN"] = best_gan_params
-        print(f"🎯 Best GAN Parameters: {best_gan_params}")
+        print(f"Best GAN Parameters: {best_gan_params}")
 
     if ovs in ["wgan", "all"]:
-        print("\n🚀 Running WGAN optimization...")
+        print("\nRunning WGAN optimization...")
         best_wgan_params = optimize_wgan(X_train, y_train, train_params)
         results["WGAN"] = best_wgan_params
-        print(f"🎯 Best WGAN Parameters: {best_wgan_params}")
+        print(f"Best WGAN Parameters: {best_wgan_params}")
 
     # **Save results to CSV**
     results_df = pd.DataFrame(results)
     results_filepath = f"{output_folder}/pt_ovs_params.csv"
     results_df.to_csv(results_filepath, index=False)
 
-    print(f"\n✅ Best hyperparameters saved to '{results_filepath}'.")
+    print(f"\nBest hyperparameters saved to '{results_filepath}'.")
 
 
 ###

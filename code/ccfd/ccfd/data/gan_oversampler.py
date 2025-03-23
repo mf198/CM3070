@@ -227,7 +227,7 @@ def generate_synthetic_samples(generator, num_samples=1000, use_gpu=False):
     try:
         latent_dim = generator.latent_dim  # Assuming Generator class has `self.latent_dim`
     except AttributeError:
-        raise ValueError("❌ Generator model does not have `latent_dim` attribute. Please ensure it's correctly set.")
+        raise ValueError("Generator model does not have `latent_dim` attribute. Please ensure it's correctly set.")
 
     # Generate random noise (z) on the same device as the generator
     z = torch.randn((num_samples, latent_dim), device=device)

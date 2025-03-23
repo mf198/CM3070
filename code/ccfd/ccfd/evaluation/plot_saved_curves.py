@@ -60,18 +60,18 @@ def plot_curve_from_file(csv_file):
     Returns:
         None
     """
-    # ✅ Extract Model and Oversampling Method from Filename
+    # Extract Model and Oversampling Method from Filename
     file_name = os.path.basename(csv_file)
     parts = file_name.replace("curves_", "").replace(".csv", "").split("_")
     
     if len(parts) < 2:
-        print(f"⚠️ Invalid file name format: {file_name}")
+        print(f"Invalid file name format: {file_name}")
         return
     
     model_name = parts[0]  # Example: "LogisticRegression"
     oversampling_method = parts[1]  # Example: "ADASYN"
 
-    # ✅ Detect Curve Type
+    # Detect Curve Type
     if "pr" in parts:
         curve_type = "pr_curve"
     elif "roc" in parts:
@@ -79,13 +79,13 @@ def plot_curve_from_file(csv_file):
     elif "cost" in parts:
         curve_type = "cost_based"
     else:
-        print(f"⚠️ Could not determine curve type from filename: {file_name}")
+        print(f"Could not determine curve type from filename: {file_name}")
         return
 
-    # ✅ Read CSV File
+    # Read CSV File
     df = pd.read_csv(csv_file)
 
-    # 📊 Plot the Appropriate Curve
+    # Plot the Appropriate Curve
     plt.figure(figsize=(7, 5))
 
     if curve_type == "pr_curve":
@@ -108,7 +108,7 @@ def plot_curve_from_file(csv_file):
         plt.title(f"Cost-Based Curve ({model_name} + {oversampling_method})")
 
     else:
-        print(f"⚠️ Unrecognized curve type in file: {file_name}")
+        print(f"Unrecognized curve type in file: {file_name}")
         return
 
     plt.legend()

@@ -32,14 +32,14 @@ def save_selected_curve(
             }
         )
         df_pr.to_csv(output_file.replace(".csv", "_pr.csv"), index=False)
-        print(f"✅ PR Curve saved to {output_file.replace('.csv', '_pr.csv')}")
+        print(f"PR Curve saved to {output_file.replace('.csv', '_pr.csv')}")
 
     elif threshold_method == "roc_curve":
         # Compute ROC Curve
         fpr, tpr, thresholds_roc = roc_curve(y_test, y_proba)
         df_roc = pd.DataFrame({"threshold": thresholds_roc, "fpr": fpr, "tpr": tpr})
         df_roc.to_csv(output_file.replace(".csv", "_roc.csv"), index=False)
-        print(f"✅ ROC Curve saved to {output_file.replace('.csv', '_roc.csv')}")
+        print(f"ROC Curve saved to {output_file.replace('.csv', '_roc.csv')}")
 
     elif threshold_method == "cost_based":
         # Compute Precision-Recall for Cost-Based Optimization
@@ -52,9 +52,9 @@ def save_selected_curve(
         # Save Cost-Based Curve
         df_cost = pd.DataFrame({"threshold": thresholds_pr, "cost_metric": cost_metric})
         df_cost.to_csv(output_file.replace(".csv", "_cost.csv"), index=False)
-        print(
-            f"✅ Cost-Based Curve saved to {output_file.replace('.csv', '_cost.csv')}"
-        )
+        print(f"Cost-Based Curve saved to {output_file.replace('.csv', '_cost.csv')}")
     else:
-        print("⚠️ No curve selected. No file saved.")
+        print("No curve selected. No file saved.")
+
+
 ###

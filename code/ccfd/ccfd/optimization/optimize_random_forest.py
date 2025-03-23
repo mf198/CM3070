@@ -1,9 +1,7 @@
 import optuna
-import cudf
 import cupy as cp
 import joblib
 import numpy as np
-import pandas as pd
 import os
 from sklearn.model_selection import StratifiedKFold
 from cuml.ensemble import RandomForestClassifier as cuRandomForestClassifier
@@ -41,9 +39,15 @@ def objective_random_forest(trial, X_train, y_train, train_params):
         "max_depth": trial.suggest_int("max_depth", 5, 50, step=5),
     }
     if use_gpu:
-        params["n_bins"] = trial.suggest_int("n_bins", 32, 256, step=32)  # Only for cuML
+        params["n_bins"] = trial.suggest_int(
+            "n_bins", 32, 256, step=32
+        )  # Only for cuML
 
-    model = cuRandomForestClassifier(**params) if use_gpu else skRandomForestClassifier(**params)
+    model = (
+        cuRandomForestClassifier(**params)
+        if use_gpu
+        else skRandomForestClassifier(**params)
+    )
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     evaluation_scores = []
@@ -71,7 +75,9 @@ def objective_random_forest(trial, X_train, y_train, train_params):
 
         # Apply an oversampling method if selected
         if ovs_function:
-            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(X_train_fold, y_train_fold, use_gpu)
+            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(
+                X_train_fold, y_train_fold, use_gpu
+            )
         else:
             X_train_fold_oversampled = X_train_fold
             y_train_fold_oversampled = y_train_fold
@@ -82,22 +88,21 @@ def objective_random_forest(trial, X_train, y_train, train_params):
         # Predict probabilities
         y_proba = model.predict_proba(X_val_fold)
 
-       # Convert to numpy and extract result
+        # Convert to numpy and extract result
         y_proba = to_numpy_safe(y_proba)[:, 1]
-        
+
         # Ensure y_val_fold is also a NumPy array before evaluation
         y_val_fold = to_numpy_safe(y_val_fold)
 
         # Evaluate the model using the specified metric
-        evaluation_score = evaluate_model_metric(y_val_fold, y_proba, train_params)        
+        evaluation_score = evaluate_model_metric(y_val_fold, y_proba, train_params)
 
         evaluation_scores.append(evaluation_score)
 
     return np.mean(evaluation_scores)
 
 
-def optimize_random_forest(
-    X_train, y_train, train_params):
+def optimize_random_forest(X_train, y_train, train_params):
     """
     Runs Optuna optimization for the K-Nearest Neighbors (KNN) classifier.
 
@@ -110,7 +115,7 @@ def optimize_random_forest(
             - "metric" (str): Evaluation metric to optimize. Options: ["pr_auc", "f1", "precision", "cost"].
             - "cost_fp" (float, optional): Cost of a false positive (used if metric="cost").
             - "cost_fn" (float, optional): Cost of a false negative (used if metric="cost").
-            - "jobs" (int): Number of parallel jobs (-1 to use all available cores).        
+            - "jobs" (int): Number of parallel jobs (-1 to use all available cores).
 
     Returns:
         dict: The best hyperparameters found for KNN.
@@ -122,46 +127,50 @@ def optimize_random_forest(
     model_name = train_params["model"]
     n_trials = train_params["trials"]
     n_jobs = train_params["jobs"]
-    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"    
+    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"
     output_folder = train_params["output_folder"]
 
     # Ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
-    # Define model save path dynamically
     save_filename = f"pt_{model_name}_{ovs_name}_{metric}.pkl"
     save_path = os.path.join(train_params["output_folder"], save_filename)
 
     # Start the timer to calculate training time
     timer.start()
 
-    study = optuna.create_study(direction="maximize", pruner=optuna.pruners.MedianPruner())
-    study.optimize(lambda trial: objective_random_forest(trial, X_train, y_train, train_params),
+    study = optuna.create_study(
+        direction="maximize", pruner=optuna.pruners.MedianPruner()
+    )
+    study.optimize(
+        lambda trial: objective_random_forest(trial, X_train, y_train, train_params),
         n_trials=n_trials,
         n_jobs=n_jobs,
     )
 
-    print("🔥 Best Random Forest Parameters:", study.best_params)
-    print(f"🔥 Best Random Forest Value ({metric}):", study.best_value)
+    print("Best Random Forest Parameters:", study.best_params)
+    print(f"Best Random Forest Value ({metric}):", study.best_value)
 
     # Retrain the best model using the full dataset
     if use_gpu:
         best_model = cuRandomForestClassifier(**study.best_params)
     else:
-        best_params = {k: v for k, v in study.best_params.items() if k != "n_bins"}  # Remove 'n_bins' for CPU
+        best_params = {
+            k: v for k, v in study.best_params.items() if k != "n_bins"
+        }  # Remove 'n_bins' for CPU
         best_model = skRandomForestClassifier(**best_params)
 
     best_model.fit(X_train, y_train)
 
     # Total execution time
     elapsed_time = round(timer.elapsed_final(), 2)
-    print(f"📊 Total training time: {elapsed_time}")
+    print(f"Total training time: {elapsed_time}")
 
     # Save the best model
     joblib.dump(best_model, save_path)
-    print(f"✅ Best Random Forest model saved at: {save_path}")
+    print(f"Best Random Forest model saved at: {save_path}")
 
-   # Save training performance details to CSV
+    # Save training performance details to CSV
     save_time_performance(train_params, study.best_value, elapsed_time)
 
     return study.best_params

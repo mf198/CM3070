@@ -26,7 +26,7 @@ def print_gpu_status():
     Prints the current GPU status including utilization and memory usage.
     """
     gpu_info = get_gpu_info()
-    print(f"🚀 GPU Status - Utilization: {gpu_info['gpu_utilization']}% | "
+    print(f"GPU Status - Utilization: {gpu_info['gpu_utilization']}% | "
           f"Memory: {gpu_info['gpu_memory_used']:.2f}MB / {gpu_info['gpu_memory_total']:.2f}MB")
 
 def track_gpu_during_training(model_function, X_train, y_train):
@@ -40,20 +40,19 @@ def track_gpu_during_training(model_function, X_train, y_train):
 
     Returns:
         model: The trained model.
-    """
-    #print("📊 Checking initial GPU status...")
+    """    
     print_gpu_status()
     
     start_time = time.time()
     
-    print(f"🛠️ Training {model_function.__name__} on GPU...")
+    print(f"Training {model_function.__name__} on GPU...")
     model = model_function(X_train, y_train)
     
     end_time = time.time()
     training_time = end_time - start_time
 
-    print(f"✅ Training completed in {training_time:.2f} seconds.")
-    #print("📊 Final GPU status:")
+    print(f"Training completed in {training_time:.2f} seconds.")
+    #print("Final GPU status:")
     print_gpu_status()
 
     return model, training_time
