@@ -26,9 +26,9 @@ def save_time_performance(train_params, best_value, elapsed_time):
     training_data = {
         "timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
         "device": [train_params["device"]],
-        "model": [train_params["model"]],
-        "oversampling": [train_params["ovs"] if train_params["ovs"] else "no_ovs"],
-        "metric": [train_params["metric"]],
+        "model": [train_params["model"]],        
+        "oversampling": [train_params.get("ovs", "no_ovs")],
+        "metric": [train_params.get("metric", "no_metric")],
         "value": [best_value],
         "elapsed_time_sec": [elapsed_time],  # Pass elapsed_time instead of a string
     }

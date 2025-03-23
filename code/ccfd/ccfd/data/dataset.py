@@ -5,30 +5,6 @@ import cudf
 from sklearn.model_selection import train_test_split
 from cuml.model_selection import train_test_split as cuml_train_test_split
 
-def load_dataset_cpu(filepath: str):
-    """
-    Loads the dataset from a CSV file using pandas (CPU).
-
-    Args:
-        filepath (str): Path to the CSV file.        
-    
-    Returns:
-        pd.DataFrame: Loaded dataset or None if loading fails.
-    """
-    if not os.path.exists(filepath):
-        print(f"❌ Error: File '{filepath}' not found.")
-        return None
-
-    try:
-        print(f"📄 Loading dataset using pandas (CPU)...")
-        df = pd.read_csv(filepath)
-        
-        return df
-    except Exception as e:
-        print(f"❌ Error loading file: {e}")
-        return None
-
-
 def load_dataset(filepath: str, use_gpu: bool = False):
     """
     Loads the dataset from a CSV file using either pandas (CPU) or cuDF (GPU).
@@ -56,18 +32,6 @@ def load_dataset(filepath: str, use_gpu: bool = False):
     except Exception as e:
         print(f"❌ Error loading file: {e}")
         return None
-
-def show_data_info(df: pd.DataFrame) -> None:
-    """
-    Prints dataset information and statistics.
-
-    Args:
-        df (pd.DataFrame): The dataset.
-    """
-    print("=== Dataset Info ===")
-    print(df.info())
-    print("\n=== Statistical Summary ===")
-    print(df.describe())
 
 def prepare_data(df, target_column: str = "Class", use_gpu: bool = False):
     """
@@ -100,3 +64,15 @@ def prepare_data(df, target_column: str = "Class", use_gpu: bool = False):
         y = df[target_column]  # Labels
 
         return train_test_split(X, y, stratify=y, test_size=0.2, random_state=42)
+    
+def show_data_info(df: pd.DataFrame) -> None:
+    """
+    Prints dataset information and statistics.
+
+    Args:
+        df (pd.DataFrame): The dataset.
+    """
+    print("=== Dataset Info ===")
+    print(df.info())
+    print("\n=== Statistical Summary ===")
+    print(df.describe())

@@ -24,3 +24,5 @@ Single Model, All Oversampling, Single Metric
 Single Model, All Oversampling, All Metrics
 All Models, Single Oversampling, Single Metric
 All Models, All Oversampling, All Metrics
+
+Evaluate the use of a recurrent autoencoder in case of dataset containing date and time values

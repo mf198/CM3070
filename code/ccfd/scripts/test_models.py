@@ -203,10 +203,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--threshold",
-        type=float,        
+        type=float,
         default=0.5,
         help="Threshold value for evaluation.",
-    )        
+    )
     parser.add_argument(
         "--cost_fp",
         type=float,
