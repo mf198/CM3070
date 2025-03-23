@@ -21,15 +21,15 @@ def display_n_records(filepath="cuml_oversampling_results.csv", num_records=5):
 
         # Display the results as a cuDF DataFrame
 
-        # ✅ Display the specified number of records
-        print(f"\n📊 Displaying First {num_records} Records:")
+        # Display the specified number of records
+        print(f"\nDisplaying First {num_records} Records:")
         print(df.head(num_records))
 
     except FileNotFoundError:
-        print(f"❌ Error: {filepath} not found. Please check the file path.")
+        print(f"Error: {filepath} not found. Please check the file path.")
 
 if __name__ == "__main__":
-    # ✅ Allow user to specify number of records via command-line argument
+    # Allow user to specify number of records via command-line argument
     num_records = int(sys.argv[1]) if len(sys.argv) > 1 else 5
     display_n_records(num_records=num_records)
 

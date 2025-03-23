@@ -73,8 +73,6 @@ def apply_adasyn(X, y, use_gpu=False) -> tuple:
         return cudf.DataFrame(X_resampled, columns=X.columns), cudf.Series(y_resampled)
     else:
         return pd.DataFrame(X_resampled, columns=X.columns), pd.Series(y_resampled)
-
-
 ###
 
 
@@ -105,8 +103,6 @@ def apply_svm_smote(X, y, use_gpu=False) -> tuple:
         return cudf.DataFrame(X_resampled, columns=X.columns), cudf.Series(y_resampled)
     else:
         return pd.DataFrame(X_resampled, columns=X.columns), pd.Series(y_resampled)
-
-
 ###
 
 
@@ -134,16 +130,12 @@ def apply_gan_oversampling(
     else:
         unique_classes, class_counts = np.unique(y_train, return_counts=True)
 
-    # class_distribution = dict(zip(unique_classes, class_counts))
-    # print(f"Class distribution before oversampling: {class_distribution}")
-
     # Identify the minority and majority class
     minority_class = unique_classes[np.argmin(class_counts)]
     majority_class = unique_classes[np.argmax(class_counts)]
 
     # Calculate the number of synthetic samples needed
-    num_samples = class_counts.max() - class_counts.min()
-    # print(f"🔄 Generating {num_samples} synthetic samples to balance the dataset.")
+    num_samples = class_counts.max() - class_counts.min()    
 
     # Extract minority class samples
     minority_mask = y_train == minority_class
@@ -162,9 +154,8 @@ def apply_gan_oversampling(
             X_minority.to_numpy(), dtype=torch.float32, device=device
         )
 
-    # Check if pre-trained GAN model exists
-    if os.path.exists(model_path):
-        # print(f"📂 Loading pre-trained GAN model from: {model_path}")
+    # Use a pre-trained GAN model if it exists
+    if os.path.exists(model_path):        
 
         # Load saved model
         checkpoint = torch.load(model_path, map_location=device, weights_only=True)
@@ -176,7 +167,7 @@ def apply_gan_oversampling(
         generator.eval()  # Set to evaluation mode
 
     else:
-        print("🚀 Training a new GAN for oversampling (no pre-trained model found)...")
+        print(" Training a new GAN for oversampling (no pre-trained model found)...")
         generator = train_gan(X_minority, num_epochs=500, latent_dim=10, batch_size=32)
 
     # Generate synthetic samples using optimized function
@@ -264,7 +255,7 @@ def apply_wgan_oversampling(
         generator.eval()  # Set to evaluation mode
 
     else:
-        print("🚀 Training a new WGAN for oversampling (no pre-trained model found)...")
+        print("Training a new WGAN for oversampling (no pre-trained model found)...")
         generator = train_wgan(X_minority, num_epochs=500, latent_dim=10, batch_size=32)
 
     # Generate synthetic samples using optimized function
@@ -289,57 +280,4 @@ def apply_wgan_oversampling(
         y_balanced = pd.concat([y_train, y_synthetic], ignore_index=True)
 
     return X_balanced, y_balanced
-###
-
-
-def apply_wgan_oversampling_old(
-    X_train, y_train, use_gpu=False, model_path="ccfd/pretrained_models/pt_wgan.pth"
-):
-    """
-    Uses a WGAN to oversample the minority class in a dataset. Supports both CPU and GPU.
-
-    Args:
-        df (cudf.DataFrame or pd.DataFrame): Input dataset.
-        target_column (str): Target class column name.
-        num_samples (int): Number of synthetic samples to generate.
-        use_gpu (bool): If True, use GPU (cuDF + CuPy), otherwise use CPU (pandas + NumPy).
-
-    Returns:
-        torch.Tensor: Balanced dataset compatible with PyTorch.
-    """
-
-    # Identify class distribution
-    class_counts = df[target_column].value_counts()
-    minority_class = class_counts.idxmin()
-    majority_class = class_counts.idxmax()
-
-    # Calculate the number of synthetic samples needed
-    num_samples = class_counts[majority_class] - class_counts[minority_class]
-    print(f"🔄 Generating {num_samples} synthetic samples to balance the dataset.")
-
-    # Extract minority class samples
-    X_minority = (
-        df[df[target_column] == minority_class]
-        .drop(columns=[target_column])
-        .values.astype(np.float32)
-    )
-
-    # Train WGAN and generate synthetic samples
-    print("🚀 Training WGAN for oversampling...")
-    generator = train_wgan(X_minority, num_epochs=500, latent_dim=10, batch_size=32)
-    synthetic_data = generate_synthetic_samples(generator, num_samples=num_samples)
-
-    # Convert synthetic data to DataFrame
-    synthetic_df = pd.DataFrame(
-        synthetic_data, columns=df.drop(columns=[target_column]).columns
-    )
-    synthetic_df[target_column] = minority_class
-
-    # Merge synthetic and original data
-    df_augmented = pd.concat([df, synthetic_df], axis=0).reset_index(drop=True)
-
-    # Convert back to cuDF if GPU is enabled
-    return cudf.DataFrame(df_augmented) if use_gpu else df_augmented
-
-
 ###

@@ -166,8 +166,8 @@ def optimize_xgboost(
         n_jobs=n_jobs,
     )
 
-    print(f"🔥 Best XGBoost Parameters ({metric}):", study.best_params)
-    print(f"🔥 Best XGBoost Value ({metric}):", study.best_value)
+    print(f"Best XGBoost Parameters ({metric}):", study.best_params)
+    print(f"Best XGBoost Value ({metric}):", study.best_value)
 
     # Convert full dataset to NumPy (required for XGBoost)
     X_train = to_numpy_safe(X_train)
@@ -179,11 +179,11 @@ def optimize_xgboost(
 
     # Total execution time
     elapsed_time = round(timer.elapsed_final(), 2)
-    print(f"📊 Total training time: {elapsed_time}")
+    print(f"Total training time: {elapsed_time}")
 
     # Save the best model
     joblib.dump(best_model, model_path)
-    print(f"✅ Best XGBoost model saved at: {model_path}")
+    print(f"Best XGBoost model saved at: {model_path}")
 
    # Save training performance details to CSV
     save_time_performance(train_params, study.best_value, elapsed_time)

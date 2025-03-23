@@ -58,7 +58,9 @@ def compute_metrics(
 
     return metrics
 
+
 ###
+
 
 def evaluate_model(
     y_true: np.ndarray, y_pred: np.ndarray, y_proba: np.ndarray, test_params: Dict
@@ -85,7 +87,7 @@ def evaluate_model(
     cost_fp = test_params.get("cost_fp", 1)
     cost_fn = test_params.get("cost_fn", 3)
 
-    # Check if a fixed threshold is provided    
+    # Check if a fixed threshold is provided
     if "threshold" in test_params and test_params["threshold"] is not None:
         best_threshold = test_params["threshold"]
         threshold_source = "manual override"
@@ -114,7 +116,7 @@ def evaluate_model(
         best_threshold = 0.5  # Default threshold
         threshold_source = "default (0.5)"
 
-    print(f"🔍 Using threshold: {best_threshold:.4f} ({threshold_source})")
+    print(f"Using threshold: {best_threshold:.4f} ({threshold_source})")
 
     # Apply the Threshold to Convert Probabilities into Binary Labels
     y_pred_adjusted = (y_proba >= best_threshold).astype(int)

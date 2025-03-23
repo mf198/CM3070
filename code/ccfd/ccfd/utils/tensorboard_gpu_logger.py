@@ -15,7 +15,7 @@ class GPUTensorBoardLogger:
         self.gpu_index = gpu_index
         nvmlInit()
         self.handle = nvmlDeviceGetHandleByIndex(gpu_index)
-        print(f"🖥️ TensorBoard GPU monitoring initialized at: {os.path.abspath(log_dir)}")
+        print(f"TensorBoard GPU monitoring initialized at: {os.path.abspath(log_dir)}")
 
     def get_gpu_stats(self):
         mem_info = nvmlDeviceGetMemoryInfo(self.handle)

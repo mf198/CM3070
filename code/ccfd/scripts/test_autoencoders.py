@@ -50,8 +50,8 @@ def load_model(model_path, scaler_path, device, model_type):
 
     scaler = joblib.load(scaler_path)
 
-    print(f"✅ Loaded {model_type.upper()} model from {model_path}")
-    print(f"✅ Loaded Scaler from {scaler_path}")
+    print(f"Loaded {model_type.upper()} model from {model_path}")
+    print(f"Loaded Scaler from {scaler_path}")
     return model, scaler
 
 
@@ -146,20 +146,19 @@ def test_autoencoder(params):
     use_gpu = params["device"] == "gpu"
     device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
 
-    print(f"\n📌 Loading dataset...")
+    print(f"\nLoading dataset...")
     df = load_dataset(params["dataset_path"], use_gpu=use_gpu)
 
     df = clean_dataset(df, use_gpu=use_gpu)
-
-    print("\n✂️ Splitting dataset into train and test sets...")
+    
     _, X_test, _, y_test = prepare_data(df, use_gpu=use_gpu)
 
-    print("\n🚀 Loading pre-trained Autoencoder and Scaler...")
+    print("\nLoading pre-trained Autoencoder and Scaler...")
     model, scaler = load_model(
         params["model_path"], params["scaler_path"], device, params["model"]
     )
 
-    print("\n🔍 Detecting anomalies...")
+    print("\nDetecting anomalies...")
     results_df = detect_anomalies(
         model,
         scaler,
@@ -185,7 +184,7 @@ def test_autoencoder(params):
     metrics = evaluate_model(y_test, y_pred, y_proba, params)
 
     # Print results
-    print("\n📊 Autoencoder Performance Metrics on Test Data:")
+    print("\nAutoencoder Performance Metrics on Test Data:")
     for metric, value in metrics.items():
         print(f"  {metric}: {value:.4f}")
 
@@ -196,7 +195,7 @@ def test_autoencoder(params):
     else:
         results_df.to_csv(output_file, index=False)
 
-    print(f"\n✅ Test results saved to '{output_file}'.")
+    print(f"\nTest results saved to '{output_file}'.")
 
     # Log metrics using TensorBoard
     model_monitor = ModelTensorBoardLogger(log_dir="runs/autoencoder_test")

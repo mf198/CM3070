@@ -20,17 +20,23 @@ def compute_curve_values(y_test, y_proba, curve_type="pr_curve", cost_fp=1, cost
     """
 
     if isinstance(y_test, cudf.Series):
-        y_test = y_test.astype("int32").to_numpy()  # Ensure cuDF → NumPy with integer format
+        y_test = y_test.astype(
+            "int32"
+        ).to_numpy()  # Ensure cuDF → NumPy with integer format
     else:
         y_test = np.array(y_test, dtype=int)
 
-    if curve_type == "pr_curve":        
+    if curve_type == "pr_curve":
         precision, recall, thresholds = precision_recall_curve(y_test, y_proba)
         return precision[:-1], recall[:-1], thresholds  # Remove last threshold
 
     elif curve_type == "roc_curve":
         fpr, tpr, thresholds = roc_curve(y_test, y_proba)
-        return tpr, fpr, thresholds  # ROC: True Positive Rate (TPR) vs False Positive Rate (FPR)
+        return (
+            tpr,
+            fpr,
+            thresholds,
+        )  # ROC: True Positive Rate (TPR) vs False Positive Rate (FPR)
 
     elif curve_type == "cost_based":
         precision, recall, thresholds = precision_recall_curve(y_test, y_proba)
@@ -38,13 +44,21 @@ def compute_curve_values(y_test, y_proba, curve_type="pr_curve", cost_fp=1, cost
         return cost_metric[:-1], thresholds, thresholds  # Return cost metric values
 
     elif curve_type == "percentile":
-        return y_proba, None, y_proba  # Directly return probabilities to apply percentile thresholding
+        return (
+            y_proba,
+            None,
+            y_proba,
+        )  # Directly return probabilities to apply percentile thresholding
 
     else:
-        raise ValueError("Invalid curve type. Choose 'pr_curve', 'roc_curve', 'cost_based', or 'percentile'.")
+        raise ValueError(
+            "Invalid curve type. Choose 'pr_curve', 'roc_curve', 'cost_based', or 'percentile'."
+        )
 
 
-def find_best_threshold(metric1, metric2, thresholds, curve_type="pr_curve", percentile=99):
+def find_best_threshold(
+    metric1, metric2, thresholds, curve_type="pr_curve", percentile=99
+):
     """
     Finds the best threshold from computed curve values.
 
@@ -64,10 +78,12 @@ def find_best_threshold(metric1, metric2, thresholds, curve_type="pr_curve", per
 
     if curve_type == "pr_curve":
         f1_scores = np.divide(
-            2 * metric1 * metric2, 
-            metric1 + metric2, 
+            2 * metric1 * metric2,
+            metric1 + metric2,
             where=(metric1 + metric2) > 0,  # Avoid division where sum is zero
-            out=np.zeros_like(metric1)  # Default F1-score = 0 where division is not valid
+            out=np.zeros_like(
+                metric1
+            ),  # Default F1-score = 0 where division is not valid
         )
 
         best_idx = np.argmax(f1_scores)  # Find the index of max F1-score
@@ -79,15 +95,19 @@ def find_best_threshold(metric1, metric2, thresholds, curve_type="pr_curve", per
         best_idx = np.argmin(metric1)  # Find the minimum cost point
 
     elif curve_type == "percentile":
-        best_threshold = np.percentile(metric1, percentile)  # Select threshold at the chosen percentile
-        print(f"🏆 Best Percentile-Based Threshold ({percentile}th percentile): {best_threshold:.4f}")
+        best_threshold = np.percentile(
+            metric1, percentile
+        )  # Select threshold at the chosen percentile
+        print(
+            f"Best Percentile-Based Threshold ({percentile}th percentile): {best_threshold:.4f}"
+        )
         return best_threshold
 
     else:
-        raise ValueError("Invalid curve type. Choose 'pr_curve', 'roc_curve', 'cost_based', or 'percentile'.")
+        raise ValueError(
+            "Invalid curve type. Choose 'pr_curve', 'roc_curve', 'cost_based', or 'percentile'."
+        )
 
     best_threshold = thresholds[best_idx]
-    print(f"🏆 Best {curve_type.upper()} Threshold: {best_threshold:.4f}")
+    print(f"Best {curve_type.upper()} Threshold: {best_threshold:.4f}")
     return best_threshold
-
-

@@ -32,38 +32,33 @@ def optimize_model_pipeline(train_params: dict):
     df = load_dataset(dataset_path, use_gpu=use_gpu)
     df = clean_dataset(df, use_gpu=use_gpu)
 
-    # Split into train and test (stratified)
-    print("\n✂️ Splitting dataset with prepare_data...")
+    # Split into train and test (stratified)    
     X_train, X_test, y_train, y_test = prepare_data(
         df, target_column="Class", use_gpu=use_gpu
     )
 
-    # Filter out frauds for training (only normal data)
-    print("\n🚫 Removing fraud samples from training set...")
+    # Filter out frauds for training (only normal data)    
     normal_train_mask = (y_train == 0).values if not use_gpu else (y_train == 0)
     X_train = X_train[normal_train_mask]
 
-    # Pass full labels (before filtering) for PR AUC validation
-    train_params["y_train"] = y_test  # PR AUC eval is on test set
-
-    # Run model-specific optimization
+    # Run optimization
     if model == "vae":
-        print("\n🚀 Running Variational Autoencoder (VAE) optimization...")
+        print("\n Running Variational Autoencoder (VAE) optimization...")
         best_params = optimize_vae(X_train, train_params)
         filename_prefix = "pt_vae"
     else:
-        print("\n🚀 Running Autoencoder optimization...")
+        print("\n Running Autoencoder optimization...")
         best_params = optimize_autoencoder(X_train, train_params)
         filename_prefix = "pt_autoencoder"
 
-    print(f"🎯 Best {model.upper()} Parameters: {best_params}")
+    print(f" Best {model.upper()} Parameters: {best_params}")
 
     # Save best hyperparameters
     results_df = pd.DataFrame([best_params])
     results_filepath = f"{output_folder}/{filename_prefix}_params.csv"
     results_df.to_csv(results_filepath, index=False)
 
-    print(f"\n✅ Best {model.upper()} hyperparameters saved to '{results_filepath}'.")
+    print(f"\n Best {model.upper()} hyperparameters saved to '{results_filepath}'.")
 ###
 
 

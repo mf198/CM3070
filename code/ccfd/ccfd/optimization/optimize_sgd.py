@@ -1,5 +1,4 @@
 import optuna
-import cudf
 import cupy as cp
 import joblib
 import numpy as np
@@ -82,7 +81,9 @@ def objective_sgd(trial, X_train, y_train, train_params):
 
         # Apply an oversampling method if selected
         if ovs_function:
-            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(X_train_fold, y_train_fold, use_gpu)
+            X_train_fold_oversampled, y_train_fold_oversampled = ovs_function(
+                X_train_fold, y_train_fold, use_gpu
+            )
         else:
             X_train_fold_oversampled = X_train_fold
             y_train_fold_oversampled = y_train_fold
@@ -94,11 +95,17 @@ def objective_sgd(trial, X_train, y_train, train_params):
         try:
             if use_gpu:
                 y_proba = model.predict(X_val_fold).astype(np.float32)
-                y_proba = 1 / (1 + np.exp(-y_proba))  # Apply Sigmoid to approximate probability                
+                y_proba = 1 / (
+                    1 + np.exp(-y_proba)
+                )  # Apply Sigmoid to approximate probability
             else:
-                y_proba = model.predict_proba(X_val_fold)[:, 1]  # Use `predict_proba()` in CPU mode                
+                y_proba = model.predict_proba(X_val_fold)[
+                    :, 1
+                ]  # Use `predict_proba()` in CPU mode
         except AttributeError:
-            print("⚠️ Warning: cuML MBSGDClassifier does not support `predict_proba()`, using sigmoid approximation.")
+            print(
+                "Warning: cuML MBSGDClassifier does not support `predict_proba()`, using sigmoid approximation."
+            )
 
         # Convert to numpy and extract result
         y_proba = to_numpy_safe(y_proba)
@@ -139,13 +146,12 @@ def optimize_sgd(X_train, y_train, train_params):
     model_name = train_params["model"]
     n_trials = train_params["trials"]
     n_jobs = train_params["jobs"]
-    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"    
+    ovs_name = train_params["ovs"] if train_params["ovs"] else "no_ovs"
     output_folder = train_params["output_folder"]
 
     # Ensure output directory exists
     os.makedirs(output_folder, exist_ok=True)
 
-    # Define model save path dynamically
     save_filename = f"pt_{model_name}_{ovs_name}_{metric}.pkl"
     save_path = os.path.join(train_params["output_folder"], save_filename)
 
@@ -156,11 +162,13 @@ def optimize_sgd(X_train, y_train, train_params):
         direction="maximize", pruner=optuna.pruners.MedianPruner()
     )
     study.optimize(
-        lambda trial: objective_sgd(trial, X_train, y_train, train_params), n_trials=n_trials, n_jobs=n_jobs
+        lambda trial: objective_sgd(trial, X_train, y_train, train_params),
+        n_trials=n_trials,
+        n_jobs=n_jobs,
     )
 
-    print(f"🔥 Best SGD Parameters ({metric}):", study.best_params)
-    print(f"🔥 Best SGD Value ({metric}):", study.best_value)
+    print(f"Best SGD Parameters ({metric}):", study.best_params)
+    print(f"Best SGD Value ({metric}):", study.best_value)
 
     # Retrain the best model using the full dataset
     if use_gpu:
@@ -175,13 +183,13 @@ def optimize_sgd(X_train, y_train, train_params):
 
     # Total execution time
     elapsed_time = round(timer.elapsed_final(), 2)
-    print(f"📊 Total training time: {elapsed_time}")
+    print(f"Total training time: {elapsed_time}")
 
     # Save the best model
     joblib.dump(best_model, save_path)
-    print(f"✅ Best SGD model saved at: {save_path}")
+    print(f"Best SGD model saved at: {save_path}")
 
-   # Save training performance details to CSV
+    # Save training performance details to CSV
     save_time_performance(train_params, study.best_value, elapsed_time)
 
     return study.best_params

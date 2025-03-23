@@ -1,19 +1,14 @@
-import optuna
-import torch
 import cudf
-import joblib
 import xgboost as xgb
-import numpy as np
-import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 from cuml.linear_model import LogisticRegression, MBSGDClassifier
 from cuml.ensemble import RandomForestClassifier
 from cuml.neighbors import KNeighborsClassifier
-from cuml.metrics import accuracy_score, roc_auc_score
-#from optuna.integration import PyTorchLightningPruningCallback
 
 
-def train_random_forest_gpu(X_train: cudf.DataFrame, y_train: cudf.Series) -> RandomForestClassifier:
+def train_random_forest_gpu(
+    X_train: cudf.DataFrame, y_train: cudf.Series
+) -> RandomForestClassifier:
     """
     Trains a Random Forest classifier using RAPIDS cuML.
 
@@ -28,13 +23,17 @@ def train_random_forest_gpu(X_train: cudf.DataFrame, y_train: cudf.Series) -> Ra
     X_train = X_train.astype("float32")
     y_train = y_train.astype("float32")
 
-    model = RandomForestClassifier(n_estimators=200, max_depth=15, bootstrap=True, n_bins=128)
+    model = RandomForestClassifier(
+        n_estimators=200, max_depth=15, bootstrap=True, n_bins=128
+    )
     model.fit(X_train, y_train)
 
     return model
 
 
-def train_knn_gpu(X_train: cudf.DataFrame, y_train: cudf.Series, n_neighbors: int = 5) -> KNeighborsClassifier:
+def train_knn_gpu(
+    X_train: cudf.DataFrame, y_train: cudf.Series, n_neighbors: int = 5
+) -> KNeighborsClassifier:
     """
     Trains a k-Nearest Neighbors (kNN) classifier using RAPIDS cuML.
 
@@ -46,14 +45,17 @@ def train_knn_gpu(X_train: cudf.DataFrame, y_train: cudf.Series, n_neighbors: in
     Returns:
         KNeighborsClassifier: Trained GPU-based model.
     """
-    #model = KNeighborsClassifier(n_neighbors=n_neighbors)
-    model = KNeighborsClassifier(n_neighbors=5, metric="euclidean", weights="uniform", algorithm="brute")
+    model = KNeighborsClassifier(
+        n_neighbors=5, metric="euclidean", weights="uniform", algorithm="brute"
+    )
 
     model.fit(X_train, y_train)
     return model
 
 
-def train_logistic_regression_gpu(X_train: cudf.DataFrame, y_train: cudf.Series) -> LogisticRegression:
+def train_logistic_regression_gpu(
+    X_train: cudf.DataFrame, y_train: cudf.Series
+) -> LogisticRegression:
     """
     Trains a Logistic Regression model using RAPIDS cuML.
 
@@ -64,9 +66,8 @@ def train_logistic_regression_gpu(X_train: cudf.DataFrame, y_train: cudf.Series)
     Returns:
         LogisticRegression: Trained GPU-based model.
     """
-    #model = LogisticRegression()
     model = LogisticRegression(penalty="l2", C=1.0, solver="qn", max_iter=200)
-    
+
     model.fit(X_train, y_train)
     return model
 
@@ -83,7 +84,6 @@ def train_mbgd_gpu(X_train: cudf.DataFrame, y_train: cudf.Series) -> MBSGDClassi
         MBSGDClassifier: Trained GPU-based model.
     """
     model = MBSGDClassifier(loss="log", eta0=0.01, batch_size=512, epochs=1000)
-    #model = MBSGDClassifier(loss="log", penalty="l2", alpha=0.0001, learning_rate="adaptive")
     model.fit(X_train, y_train)
     return model
 
@@ -104,7 +104,9 @@ def train_xgboost_gpu(X_train, y_train) -> xgb.XGBClassifier:
         X_train = X_train.to_pandas()
     if isinstance(y_train, cudf.Series):
         y_train = y_train.to_pandas()
-    
-    model = xgb.XGBClassifier(eval_metric='logloss', scale_pos_weight=5, random_state=42, device="cuda")
+
+    model = xgb.XGBClassifier(
+        eval_metric="logloss", scale_pos_weight=5, random_state=42, device="cuda"
+    )
     model.fit(X_train, y_train)  # XGBoost expects pandas format
     return model

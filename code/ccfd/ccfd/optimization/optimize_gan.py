@@ -1,8 +1,6 @@
 import cudf
 import optuna
 import torch
-import pandas as pd
-import cupy as cp
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
@@ -148,9 +146,13 @@ def objective_gan(trial, X_train, y_train, use_gpu=False):
 
     # Convert dataset **before** training loop
     if use_gpu:
-        X_train_tensor = torch.tensor(X_train.to_cupy(), dtype=torch.float32, device=device)
+        X_train_tensor = torch.tensor(
+            X_train.to_cupy(), dtype=torch.float32, device=device
+        )
     else:
-        X_train_tensor = torch.tensor(X_train.to_numpy(), dtype=torch.float32, device=device)
+        X_train_tensor = torch.tensor(
+            X_train.to_numpy(), dtype=torch.float32, device=device
+        )
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     val_losses = []
@@ -231,7 +233,6 @@ def objective_gan(trial, X_train, y_train, use_gpu=False):
     return np.mean(val_losses)
 
 
-
 def optimize_gan(X_train, y_train, train_params):
     """
     Runs Optuna optimization for GAN training with pruning and parallel execution.
@@ -289,8 +290,8 @@ def optimize_gan(X_train, y_train, train_params):
         n_jobs=n_jobs,
     )
 
-    print("✅ Best Parameters for GAN:", study.best_params)
-    print("🔥 Best Value for GAN:", study.best_value)
+    print("Best Parameters for GAN:", study.best_params)
+    print("Best Value for GAN:", study.best_value)
 
     # Re-train best GAN with found parameters
     best_params = study.best_params
@@ -299,7 +300,7 @@ def optimize_gan(X_train, y_train, train_params):
 
     # Total execution time
     elapsed_time = round(timer.elapsed_final(), 2)
-    print(f"📊 Total training time: {elapsed_time}")
+    print(f"Total training time: {elapsed_time}")
 
     # Save best model
     torch.save(
@@ -311,7 +312,7 @@ def optimize_gan(X_train, y_train, train_params):
         save_path,
     )
 
-    print(f"🎯 Best GAN model saved at: {save_path}")
+    print(f"Best GAN model saved at: {save_path}")
 
     # Save training performance details to CSV
     save_time_performance(train_params, study.best_value, elapsed_time)

@@ -5,7 +5,6 @@ import numpy as np
 import optuna
 import joblib
 import os
-from sklearn.metrics import average_precision_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, TensorDataset
@@ -21,10 +20,6 @@ def vae_loss_function(recon_x, x, mu, logvar):
     recon_loss = nn.functional.mse_loss(recon_x, x, reduction="mean")
     kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / x.size(0)
     return recon_loss + kl_div
-
-
-from sklearn.metrics import average_precision_score
-from ccfd.utils.type_converter import to_numpy_safe
 
 
 def objective_vae(trial, X_train, train_params):
@@ -126,8 +121,8 @@ def optimize_vae(X_train, train_params):
         n_jobs=n_jobs,
     )
 
-    print(f"🔥 Best VAE Parameters: {study.best_params}")
-    print(f"🔥 Best Validation Loss: {study.best_value}")
+    print(f"Best VAE Parameters: {study.best_params}")
+    print(f"Best Validation Loss: {study.best_value}")
 
     best_params = study.best_params
     latent_dim = best_params["latent_dim"]
@@ -155,7 +150,7 @@ def optimize_vae(X_train, train_params):
     model_logger = ModelTensorBoardLogger(log_dir="runs/vae_optimization")
     gpu_logger = GPUTensorBoardLogger(log_dir="runs/vae_gpu") if use_gpu else None
 
-    print("\n🚀 Retraining the best VAE with optimal parameters...")
+    print("\nRetraining the best VAE with optimal parameters...")
     model.train()
     for epoch in range(epochs):
         total_loss = 0
@@ -175,7 +170,7 @@ def optimize_vae(X_train, train_params):
 
         print(f"Epoch [{epoch+1}/{epochs}], Loss: {total_loss:.6f}")
 
-    print("\n✅ Best VAE retrained successfully!")
+    print("\nBest VAE retrained successfully!")
 
     # Save model with structure
     torch.save(
@@ -188,8 +183,8 @@ def optimize_vae(X_train, train_params):
     )
 
     joblib.dump(scaler, scaler_path)
-    print(f"✅ VAE model saved at: {model_path}")
-    print(f"✅ Scaler saved at: {scaler_path}")
+    print(f"VAE model saved at: {model_path}")
+    print(f"Scaler saved at: {scaler_path}")
 
     # Close loggers
     model_logger.close()
