@@ -10,6 +10,8 @@ from ccfd.evaluation.evaluate_models import evaluate_model_metric
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.time_performance import save_time_performance
 from ccfd.utils.timer import Timer
+from cuml.preprocessing import StandardScaler as cuStandardScaler  # GPU
+from sklearn.preprocessing import StandardScaler as skStandardScaler  # CPU
 
 
 def sigmoid(x):
@@ -39,24 +41,38 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
     ovs_function = train_params["oversampling_function"]
 
     if use_gpu:
-        solver = "qn"  # cuML only supports 'qn'
+        params = {
+            "penalty": "l2",
+            "C": trial.suggest_float("C", 1e-4, 1e4, log=True),
+            #"C": trial.suggest_float("C", 0.01, 10.0, log=True),
+            "solver": "qn",  # cuML only supports "qn"            
+            "max_iter": trial.suggest_int("max_iter", 100, 1000, step=100),
+        }
+        model = cuLogisticRegression(**params)
+
+        # Scale the dataset
+        X_train = cuStandardScaler().fit_transform(X_train)
+
     else:
         solver = trial.suggest_categorical(
-            "solver",
-            ["lbfgs", "liblinear", "saga", "sag", "newton-cg", "newton-cholesky"],
+            "solver", ["lbfgs", "liblinear", "saga", "sag", "newton-cg", "newton-cholesky"]
         )
 
-    params = {
-        "penalty": "l2",
-        "C": trial.suggest_float("C", 0.01, 10.0, log=True),
-        "solver": solver,
-        "max_iter": trial.suggest_int("max_iter", 100, 500, step=100),
-    }
+        if solver in ["liblinear", "saga"]:
+            penalty = trial.suggest_categorical("penalty", ["l1", "l2"])
+        else:
+            penalty = "l2"
 
-    model = (
-        cuLogisticRegression(**params) if use_gpu else skLogisticRegression(**params)
-    )
-
+        params = {
+            "penalty": penalty,
+            "C": trial.suggest_float("C", 1e-4, 1e4, log=True),
+            "solver": solver,
+            "max_iter": trial.suggest_int("max_iter", 100, 1000, step=100),
+            "class_weight": "balanced",
+            "warm_start": True,
+        }
+        model = skLogisticRegression(**params)
+        
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     evaluation_scores = []
 
@@ -66,7 +82,8 @@ def objective_logistic_regression(trial, X_train, y_train, train_params):
         X_train_np = X_train.to_cupy()
         y_train_np = y_train.to_cupy().get()
     else:
-        X_train_np, y_train_np = X_train.to_numpy(), y_train.to_numpy()
+        X_train_np = to_numpy_safe(X_train)
+        y_train_np = to_numpy_safe(y_train)
 
     for train_idx, val_idx in skf.split(X_train_np, y_train_np):
         if use_gpu:

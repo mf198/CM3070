@@ -145,27 +145,29 @@ if __name__ == "__main__":
         default="ccfd/pretrained_models",
         help="Folder where optimization results will be saved.",
     )
+    parser.add_argument(
+        "--results_folder",
+        type=str,
+        default="results",
+        help="Folder where training results will be saved.",
+    )
 
     args = parser.parse_args()
-
-    # Convert selections
-    ovs = args.ovs  # "gan", "wgan", "all"
-    trials = args.trials
-    jobs = args.jobs
-    output_folder = args.output_folder
 
     # Store experiment parameters in a dictionary
     params = {
         "dataset": dataset_path,
         "device": args.device,
-        "ovs": ovs,
-        "trials": trials,
-        "jobs": jobs,
-        "output_folder": output_folder,
+        "ovs": args.ovs,
+        "trials": args.trials,
+        "jobs": args.jobs,
+        "output_folder": args.output_folder,
+        "results_folder": args.results_folder,
+        "model": None
     }
 
     # Print experiment setup
-    print(f"🔍 Training ovs method with parameters: {params}")
+    print(f"Training ovs method with parameters: {params}")
 
     # Run optimization
     optimize_ovs(params)

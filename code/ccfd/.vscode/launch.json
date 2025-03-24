@@ -12,18 +12,18 @@
             "args": ["--device", "gpu", "--model", "knn", "--ovs", "gan", "--metric", "f1", "--eval_method", "cost_based", "--cost_fp", "1", "--cost_fn", "3"]
         },
         {
-            "name": "Python Debugger: optimize_model",
+            "name": "Python Debugger: train model",
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.train_models",
-            "args": ["--device", "gpu", "--model", "knn", "--ovs", "smote",  "--trials", "1", "--jobs", "1"]
+            "args": ["--device", "cpu", "--model", "lr", "--ovs", "smote", "--metric", "f1", "--trials", "1", "--jobs", "1"]
         },
         {
-            "name": "Python Debugger: optimize_ovs",
+            "name": "Python Debugger: optimize ovs",
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.optimize_ovs",
-            "args": ["--device", "cpu", "--ovs", "gan", "--trials", "1", "--jobs", "1"]
+            "args": ["--device", "gpu", "--ovs", "gan", "--trials", "1", "--jobs", "1"]
         },
         {
             "name": "Python Debugger: optimize_autoencoder",

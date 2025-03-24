@@ -35,6 +35,12 @@ python -m scripts.train_models --device gpu --model knn --ovs adasyn --output_fo
 python -m scripts.train_models --device gpu --model knn --ovs adasyn --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 3
 python -m scripts.train_models --device gpu --model knn --ovs adasyn --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 3
 python -m scripts.train_models --device gpu --model knn --ovs adasyn --output_folder ccfd/pretrained_models --metric recall --trials 30 --jobs 3
+python -m scripts.train_models --device gpu --model knn --ovs svmsmote --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 3
+python -m scripts.train_models --device gpu --model knn --ovs svmsmote --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 3
+python -m scripts.train_models --device gpu --model knn --ovs svmsmote --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 3
+python -m scripts.train_models --device gpu --model knn --ovs svmsmote --output_folder ccfd/pretrained_models --metric recall --trials 30 --jobs 3
+
+
 
 python -m scripts.train_models --device gpu --model rf --ovs smote --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 3
 python -m scripts.train_models --device gpu --model rf --ovs smote --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 3
@@ -44,3 +50,21 @@ python -m scripts.train_models --device gpu --model rf --ovs adasyn --output_fol
 python -m scripts.train_models --device gpu --model rf --ovs adasyn --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 3
 python -m scripts.train_models --device gpu --model rf --ovs adasyn --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 3
 python -m scripts.train_models --device gpu --model rf --ovs adasyn --output_folder ccfd/pretrained_models --metric recall --trials 30 --jobs 3
+
+python -m scripts.train_models --device gpu --model xgboost --ovs smote --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model xgboost --ovs smote --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model xgboost --ovs smote --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model xgboost --ovs smote --output_folder ccfd/pretrained_models --metric recall --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model xgboost --ovs adasyn --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model xgboost --ovs adasyn --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model xgboost --ovs adasyn --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model xgboost --ovs adasyn --output_folder ccfd/pretrained_models --metric recall --trials 30 --jobs 2
+
+python -m scripts.train_models --device gpu --model lr --ovs smote --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model lr --ovs smote --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model lr --ovs smote --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model lr --ovs smote --output_folder ccfd/pretrained_models --metric recall --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model lr --ovs adasyn --output_folder ccfd/pretrained_models --metric prauc --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model lr --ovs adasyn --output_folder ccfd/pretrained_models --metric f1 --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model lr --ovs adasyn --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 2
+python -m scripts.train_models --device gpu --model lr --ovs adasyn --output_folder ccfd/pretrained_models --metric recall --trials 30 --jobs 2
