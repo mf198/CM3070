@@ -1,9 +1,6 @@
 import cudf
 import optuna
 import torch
-import pandas as pd
-import cupy as cp
-import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import os
@@ -38,6 +35,9 @@ def objective_wgan(trial, X_train, y_train, use_gpu=False):
     device = torch.device("cuda" if use_gpu and torch.cuda.is_available() else "cpu")
 
     input_dim = X_train.shape[1]
+
+    # Initialize a unique step counter before training
+    global_step = 0
 
     # Initialize models
     generator = Generator(latent_dim, input_dim).to(device)
@@ -113,11 +113,15 @@ def objective_wgan(trial, X_train, y_train, use_gpu=False):
                 G_val_loss = -torch.mean(fake_val_output)  # Minimize Generator Score
 
             val_losses.append(G_val_loss.item())
-
-            trial.report(G_val_loss.item(), epoch)
-
+            
+            # Report to Optuna & prune if needed
+            trial.report(G_val_loss.item(), global_step)
             if trial.should_prune():
                 raise optuna.TrialPruned()
+            
+            # Ensure uniqueness across folds and prevents warning/errors to be 
+            # reported more than once per step
+            global_step += 1
 
     return np.mean(val_losses)  # Return Average Validation Loss
 
