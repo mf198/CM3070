@@ -208,24 +208,18 @@ def test_autoencoder(params):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Test a trained Autoencoder for fraud detection."
+        description="Test a trained Autoencoder or Variational Autoencoder for fraud detection."
     )
     parser.add_argument("--device", choices=["gpu", "cpu"], default="gpu")
-    parser.add_argument(
-        "--model_path", type=str, default="ccfd/pretrained_models/pt_autoencoder.pth"
-    )
-    parser.add_argument(
-        "--scaler_path",
-        type=str,
-        default="ccfd/pretrained_models/pt_autoencoder_scaler.pkl",
-    )
     parser.add_argument("--dataset_path", type=str, default="ccfd/data/creditcard.csv")
+
     parser.add_argument(
         "--model",
         choices=["ae", "vae"],
         default="ae",
-        help="Choose model type: ae or vae",
+        help="Choose model type: Autoencoder (ae) or Variational Autoencoder (vae)",
     )
+
     parser.add_argument("--results_folder", type=str, default="results")
     parser.add_argument(
         "--threshold_method",
@@ -236,7 +230,28 @@ if __name__ == "__main__":
     parser.add_argument("--cost_fp", type=float, default=1.0)
     parser.add_argument("--cost_fn", type=float, default=5.0)
 
+    # Parse initial arguments
     args = parser.parse_args()
+
+    # Set default model and scaler paths based on selected model type
+    if args.model == "vae":
+        default_model_path = "ccfd/pretrained_models/pt_vae.pth"
+        default_scaler_path = "ccfd/pretrained_models/pt_vae_scaler.pkl"
+    else:  # Default to Autoencoder
+        default_model_path = "ccfd/pretrained_models/pt_autoencoder.pth"
+        default_scaler_path = "ccfd/pretrained_models/pt_autoencoder_scaler.pkl"
+
+    # Allow user-specified paths to override defaults
+    parser.add_argument(
+        "--model_path", type=str, default=default_model_path, help="Path to the trained model file."
+    )
+    parser.add_argument(
+        "--scaler_path", type=str, default=default_scaler_path, help="Path to the scaler file."
+    )
+
+    # Parse arguments again to include model_path and scaler_path
+    args = parser.parse_args()
+
     params = {
         "dataset_path": args.dataset_path,
         "device": args.device,

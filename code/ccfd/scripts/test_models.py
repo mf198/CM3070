@@ -9,7 +9,6 @@ from sklearn.neighbors import KNeighborsClassifier
 from ccfd.data.dataset import load_dataset, prepare_data
 from ccfd.data.preprocess import clean_dataset
 from ccfd.utils.timer import Timer
-from ccfd.utils.gpu_monitor import track_gpu_during_training
 from ccfd.utils.tensorboard_model_logger import ModelTensorBoardLogger
 from ccfd.utils.tensorboard_gpu_logger import GPUTensorBoardLogger
 from cuml.model_selection import train_test_split as cuml_train_test_split
@@ -19,31 +18,6 @@ from ccfd.utils.timer import Timer
 from datetime import datetime
 import joblib
 import gc
-
-
-def aaaprepare_data(df, target_column: str = "Class", use_gpu: bool = False):
-    """
-    Splits the dataset into training and test sets. Converts to cuDF if GPU is enabled.
-
-    Args:
-        df (pd.DataFrame): Input dataset (always loaded in pandas).
-        target_column (str): Name of the target column.
-        use_gpu (bool): If True, converts df to cuDF and uses cuML's train-test split.
-
-    Returns:
-        Tuple: (df_train, df_test) as pandas or cuDF DataFrames/Series.
-    """
-    if use_gpu:
-        df = cudf.DataFrame(df)
-
-        # Use cuML's GPU-based train-test split
-        return cuml_train_test_split(df, test_size=0.3, random_state=42)
-    else:
-        print("Using pandas for CPU-based train-test split...")
-        return train_test_split(df, test_size=0.2, random_state=42)
-
-
-###
 
 
 def test_models(params):
@@ -71,7 +45,7 @@ def test_models(params):
     _, X_test, _, y_test = prepare_data(df, use_gpu=use_gpu)
 
     # Convert to NumPy for compatibility
-    X_test = to_numpy_safe(X_test)
+    #X_test = to_numpy_safe(X_test)
     y_test = to_numpy_safe(y_test)
 
     model_list = ["knn", "lr", "rf", "sgd", "xgboost"]
@@ -109,10 +83,11 @@ def test_models(params):
 
                 # Get discrete predictions
                 y_pred = model.predict(X_test)
-
+                
                 # Get probability estimates (if supported)
                 if hasattr(model, "predict_proba"):
-                    y_proba = model.predict_proba(X_test)[:, 1]
+                    X_test_np = to_numpy_safe(X_test)
+                    y_proba = model.predict_proba(X_test_np)[:, 1]                    
                 else:
                     y_proba = y_pred  # Default to predictions if the model does not support probabilities
 
@@ -201,8 +176,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--threshold",
-        type=float,
-        default=0.5,
+        type=float,        
         help="Threshold value for evaluation.",
     )
     parser.add_argument(

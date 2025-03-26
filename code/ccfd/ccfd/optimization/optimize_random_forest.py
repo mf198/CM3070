@@ -10,6 +10,8 @@ from ccfd.evaluation.evaluate_models import evaluate_model_metric
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.time_performance import save_time_performance
 from ccfd.utils.timer import Timer
+from ccfd.utils.tensorboard_model_logger import ModelTensorBoardLogger
+from ccfd.utils.tensorboard_gpu_logger import GPUTensorBoardLogger
 
 
 def objective_random_forest(trial, X_train, y_train, train_params):
@@ -23,8 +25,6 @@ def objective_random_forest(trial, X_train, y_train, train_params):
         train_params (dict): Dictionary containing training parameters, including:
             - "device" (str): Device for training. Options: ["gpu", "cpu"].
             - "metric" (str): Evaluation metric to optimize. Options: ["pr_auc", "f1", "precision", "cost"].
-            - "cost_fp" (float, optional): Cost of a false positive (used if metric="cost").
-            - "cost_fn" (float, optional): Cost of a false negative (used if metric="cost").
 
     Returns:
         float: The computed evaluation metric score.
@@ -59,7 +59,7 @@ def objective_random_forest(trial, X_train, y_train, train_params):
     else:
         X_train_np, y_train_np = X_train.to_numpy(), y_train.to_numpy()
 
-    for train_idx, val_idx in skf.split(X_train_np, y_train_np):
+    for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X_train_np, y_train_np)):
         if use_gpu:
             X_train_fold, X_val_fold = (
                 X_train.iloc[cp.array(train_idx)],
@@ -82,6 +82,11 @@ def objective_random_forest(trial, X_train, y_train, train_params):
             X_train_fold_oversampled = X_train_fold
             y_train_fold_oversampled = y_train_fold
 
+        # Setup TensorBoard loggers
+        log_dir = f"runs/rf_trial/trial_{trial.number}_fold_{fold_idx}"
+        model_logger = ModelTensorBoardLogger(log_dir=log_dir)
+        gpu_logger = GPUTensorBoardLogger(log_dir=log_dir) if use_gpu else None
+
         # Train model on the oversampled fold
         model.fit(X_train_fold_oversampled, y_train_fold_oversampled)
 
@@ -99,6 +104,23 @@ def objective_random_forest(trial, X_train, y_train, train_params):
 
         evaluation_scores.append(evaluation_score)
 
+        # Log performance metrics
+        log_metrics = {
+            "Metric/Eval_Score": evaluation_score,
+            "RF/n_estimators": params["n_estimators"],
+            "RF/max_depth": params["max_depth"],
+        }
+        model_logger.log_scalars(log_metrics, step=fold_idx)
+
+        # Log GPU usage (if applicable)
+        if gpu_logger:
+            gpu_logger.log_gpu_stats(step=fold_idx)
+
+        # Close loggers for this fold
+        model_logger.close()
+        if gpu_logger:
+            gpu_logger.close()
+
     return np.mean(evaluation_scores)
 
 
@@ -113,8 +135,6 @@ def optimize_random_forest(X_train, y_train, train_params):
             - "device" (str): Device for training. Options: ["gpu", "cpu"].
             - "trials" (int): Number of optimization trials.
             - "metric" (str): Evaluation metric to optimize. Options: ["pr_auc", "f1", "precision", "cost"].
-            - "cost_fp" (float, optional): Cost of a false positive (used if metric="cost").
-            - "cost_fn" (float, optional): Cost of a false negative (used if metric="cost").
             - "jobs" (int): Number of parallel jobs (-1 to use all available cores).
 
     Returns:
