@@ -11,9 +11,6 @@ class ModelTensorBoardLogger:
 
     def __init__(self, log_dir="logs/model_monitor"):
         self.writer = SummaryWriter(log_dir)
-        print(
-            f"✅ TensorBoard model logging initialized at: {os.path.abspath(log_dir)}"
-        )
 
     def log_scalar(self, tag, value, step):
         """Logs a single scalar value."""

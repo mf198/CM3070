@@ -112,6 +112,11 @@ def evaluate_model(
         )
         threshold_source = "cost-based optimization"
 
+    elif eval_method == "percentile":
+        percentile = test_params.get("percentile", 99)
+        best_threshold = np.percentile(y_proba, percentile)
+        threshold_source = f"percentile-based ({percentile}th percentile)"
+
     else:
         best_threshold = 0.5  # Default threshold
         threshold_source = "default (0.5)"
@@ -133,7 +138,7 @@ def evaluate_model_metric(y_true, y_pred, train_params):
         y_true (np.ndarray): True labels (0 = legitimate transaction, 1 = fraud).
         y_pred (np.ndarray): Model predicted scores or probabilities.
         train_params (dict): Dictionary containing training parameters, including:
-            - "metric" (str): Evaluation metric to use. Options: ["pr_auc", "f1", "precision", "cost"].
+            - "metric" (str): Evaluation metric to use. Options: ["prauc", "f1", "precision", "cost"].
             - "cost_fp" (float, optional): Cost of a false positive (legitimate transaction flagged as fraud).
             - "cost_fn" (float, optional): Cost of a false negative (fraudulent transaction not detected).
               Only required if "metric" is set to "cost".

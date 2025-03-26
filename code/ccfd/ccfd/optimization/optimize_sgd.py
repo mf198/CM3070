@@ -10,6 +10,8 @@ from ccfd.evaluation.evaluate_models import evaluate_model_metric
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.utils.time_performance import save_time_performance
 from ccfd.utils.timer import Timer
+from ccfd.utils.tensorboard_model_logger import ModelTensorBoardLogger
+from ccfd.utils.tensorboard_gpu_logger import GPUTensorBoardLogger
 
 
 def objective_sgd(trial, X_train, y_train, train_params):
@@ -23,8 +25,6 @@ def objective_sgd(trial, X_train, y_train, train_params):
         train_params (dict): Dictionary containing training parameters, including:
             - "device" (str): Device for training. Options: ["gpu", "cpu"].
             - "metric" (str): Evaluation metric to optimize. Options: ["pr_auc", "f1", "precision", "cost"].
-            - "cost_fp" (float, optional): Cost of a false positive (used if metric="cost").
-            - "cost_fn" (float, optional): Cost of a false negative (used if metric="cost").
 
     Returns:
         float: The computed evaluation metric score.
@@ -35,25 +35,23 @@ def objective_sgd(trial, X_train, y_train, train_params):
 
     if use_gpu:
         params = {
-            "loss": "adam",  # Logistic Regression
-            "eta0": trial.suggest_float("eta0", 1e-6, 1e-2, log=True),
+            "loss": "log",  # Correct loss function for cuML
+            "alpha": trial.suggest_float("alpha", 1e-6, 1e-2, log=True),
             "batch_size": trial.suggest_categorical("batch_size", [512, 1024, 2048]),
-            "epochs": trial.suggest_int(
-                "epochs", 500, 5000, step=500
-            ),  # cuML uses "epochs"
+            "epochs": trial.suggest_int("epochs", 500, 5000, step=500),
+            "tol": 1e-4,  # Prevent early stopping
         }
         model = MBSGDClassifier(**params)
+
     else:
         params = {
             "eta0": trial.suggest_float("eta0", 1e-6, 1e-2, log=True),
-            "learning_rate": "constant",
-            "max_iter": trial.suggest_int(
-                "max_iter", 500, 5000, step=5000
-            ),  # CPU uses "max_iter"
+            "learning_rate": trial.suggest_categorical(
+                "learning_rate", ["constant", "optimal", "invscaling", "adaptive"]
+            ),
+            "max_iter": trial.suggest_int("max_iter", 500, 5000, step=500),
         }
-        model = SGDClassifier(
-            loss="log_loss", **params
-        )  # No "epochs" in scikit-learngt
+        model = SGDClassifier(loss="log_loss", **params)
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     evaluation_scores = []
@@ -65,7 +63,7 @@ def objective_sgd(trial, X_train, y_train, train_params):
     else:
         X_train_np, y_train_np = X_train.to_numpy(), y_train.to_numpy()
 
-    for train_idx, val_idx in skf.split(X_train_np, y_train_np):
+    for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X_train_np, y_train_np)):
         if use_gpu:
             X_train_fold, X_val_fold = (
                 X_train.iloc[cp.array(train_idx)],
@@ -78,6 +76,11 @@ def objective_sgd(trial, X_train, y_train, train_params):
         else:
             X_train_fold, X_val_fold = X_train.iloc[train_idx], X_train.iloc[val_idx]
             y_train_fold, y_val_fold = y_train.iloc[train_idx], y_train.iloc[val_idx]
+
+        # Setup TensorBoard loggers
+        log_dir = f"runs/sgd_trial/trial_{trial.number}_fold_{fold_idx}"
+        model_logger = ModelTensorBoardLogger(log_dir=log_dir)
+        gpu_logger = GPUTensorBoardLogger(log_dir=log_dir) if use_gpu else None
 
         # Apply an oversampling method if selected
         if ovs_function:
@@ -118,6 +121,28 @@ def objective_sgd(trial, X_train, y_train, train_params):
 
         evaluation_scores.append(evaluation_score)
 
+        # Log performance metrics
+        log_metrics = {
+            "Metric/Eval_Score": evaluation_score,
+        }
+
+        # Log model hyperparameters dynamically
+        if use_gpu:
+            log_metrics["SGD/Alpha"] = params["alpha"]
+        else:
+            log_metrics["SGD/Eta0"] = params["eta0"]            
+
+        model_logger.log_scalars(log_metrics, step=fold_idx)
+
+        # Log GPU usage (if applicable)
+        if gpu_logger:
+            gpu_logger.log_gpu_stats(step=fold_idx)
+
+        # Close loggers for this fold
+        model_logger.close()
+        if gpu_logger:
+            gpu_logger.close()
+
     return np.mean(evaluation_scores)
 
 
@@ -132,8 +157,6 @@ def optimize_sgd(X_train, y_train, train_params):
             - "device" (str): Device for training. Options: ["gpu", "cpu"].
             - "trials" (int): Number of optimization trials.
             - "metric" (str): Evaluation metric to optimize. Options: ["pr_auc", "f1", "precision", "cost"].
-            - "cost_fp" (float, optional): Cost of a false positive (used if metric="cost").
-            - "cost_fn" (float, optional): Cost of a false negative (used if metric="cost").
             - "jobs" (int): Number of parallel jobs (-1 to use all available cores).
 
     Returns:
