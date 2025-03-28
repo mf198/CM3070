@@ -33,17 +33,6 @@ def objective_xgboost(trial, X_train, y_train, train_params):
     use_gpu = train_params["device"] == "gpu"
     ovs_function = train_params["oversampling_function"]
 
-    params = {
-        "max_depth": trial.suggest_int("max_depth", 3, 15),
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
-        "subsample": trial.suggest_float("subsample", 0.5, 1.0),
-        "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
-        "scale_pos_weight": trial.suggest_float("scale_pos_weight", 1.0, 10.0),
-        "eval_metric": "logloss",
-        "tree_method": "hist",
-        "device": "cuda" if use_gpu else "cpu",
-    }
-
     # XGBoost-specific hyperparameters
     params = {
         "max_depth": trial.suggest_int("max_depth", 3, 15),
@@ -197,6 +186,14 @@ def optimize_xgboost(
     # Convert full dataset to NumPy (required for XGBoost)
     X_train = to_numpy_safe(X_train)
     y_train = to_numpy_safe(y_train)
+
+    # Ensure GPU parameters are included
+    use_gpu = train_params["device"] == "gpu"
+    best_params = study.best_params.copy()
+    best_params.update({        
+        "device": "cuda" if use_gpu else "cpu",        
+        "use_label_encoder": False
+    })
 
     # Retrain the best model using the full dataset
     best_model = xgb.XGBClassifier(**study.best_params)

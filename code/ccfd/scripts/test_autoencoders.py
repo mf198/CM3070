@@ -55,9 +55,6 @@ def load_model(model_path, scaler_path, device, model_type):
     return model, scaler
 
 
-###
-
-
 def detect_anomalies(
     model,
     scaler,
@@ -70,7 +67,7 @@ def detect_anomalies(
     percentile=99,
 ):
     """
-    Detects anomalies (fraudulent transactions) using the trained Autoencoder.
+    Detects anomalies (fraudulent transactions) using the trained Autoencoder or VAE.
 
     Returns:
         DataFrame with reconstruction errors and anomaly predictions.
@@ -94,11 +91,17 @@ def detect_anomalies(
     )
 
     with torch.no_grad():
-        reconstructed = model(X_test_tensor)
+        # Handle VAE vs Autoencoder
+        if isinstance(model, FraudVariationalAutoencoder):
+            reconstructed, _, _ = model(X_test_tensor)  # VAE returns a tuple
+        else:
+            reconstructed = model(X_test_tensor)  # Autoencoder returns only the output
+
         reconstruction_errors = torch.mean((X_test_tensor - reconstructed) ** 2, dim=1)
 
     reconstruction_errors = reconstruction_errors.detach().cpu().numpy()
 
+    # Compute threshold
     if (
         threshold_method in ["pr_curve", "roc_curve", "cost_based"]
         and y_test is not None
@@ -143,20 +146,22 @@ def test_autoencoder(params):
         params (dict): Dictionary containing all command-line arguments.
     """
     timer = Timer()
+
     use_gpu = params["device"] == "gpu"
     device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
-
-    print(f"\nLoading dataset...")
+    
     df = load_dataset(params["dataset_path"], use_gpu=use_gpu)
 
     df = clean_dataset(df, use_gpu=use_gpu)
-    
-    _, X_test, _, y_test = prepare_data(df, use_gpu=use_gpu)
 
+    _, X_test, _, y_test = prepare_data(df, use_gpu=use_gpu)
+    
     print("\nLoading pre-trained Autoencoder and Scaler...")
     model, scaler = load_model(
         params["model_path"], params["scaler_path"], device, params["model"]
     )
+
+    timer.start()
 
     print("\nDetecting anomalies...")
     results_df = detect_anomalies(
@@ -182,6 +187,10 @@ def test_autoencoder(params):
 
     # Evaluate the model
     metrics = evaluate_model(y_test, y_pred, y_proba, params)
+
+    # Total execution time
+    elapsed_time = round(timer.elapsed_final(), 2)
+    print(f"Total testing time: {elapsed_time}")
 
     # Print results
     print("\nAutoencoder Performance Metrics on Test Data:")
@@ -243,10 +252,16 @@ if __name__ == "__main__":
 
     # Allow user-specified paths to override defaults
     parser.add_argument(
-        "--model_path", type=str, default=default_model_path, help="Path to the trained model file."
+        "--model_path",
+        type=str,
+        default=default_model_path,
+        help="Path to the trained model file.",
     )
     parser.add_argument(
-        "--scaler_path", type=str, default=default_scaler_path, help="Path to the scaler file."
+        "--scaler_path",
+        type=str,
+        default=default_scaler_path,
+        help="Path to the scaler file.",
     )
 
     # Parse arguments again to include model_path and scaler_path

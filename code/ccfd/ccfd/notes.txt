@@ -149,3 +149,9 @@ python -m scripts.train_models --device cpu --model sgd --ovs wgan --output_fold
 python -m scripts.train_models --device cpu --model sgd --ovs wgan --output_folder ccfd/pretrained_models --metric precision --trials 30 --jobs 2
 python -m scripts.train_models --device cpu --model sgd --ovs wgan --output_folder ccfd/pretrained_models --metric recall --trials 30 --jobs 2
 
+python -m scripts.optimize_autoencoder --device gpu --model ae --trials 30 --jobs 3
+python -m scripts.optimize_autoencoder --device gpu --model vae --trials 30 --jobs 3
+
+
+train: 227452, 394
+test: 56863, 98
