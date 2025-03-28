@@ -23,7 +23,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.optimize_ovs",
-            "args": ["--device", "gpu", "--ovs", "wgan", "--trials", "10", "--jobs", "1"]
+            "args": ["--device", "gpu", "--ovs", "gan", "--trials", "1", "--jobs", "1"]
         },
         {
             "name": "Python Debugger: optimize_autoencoder",

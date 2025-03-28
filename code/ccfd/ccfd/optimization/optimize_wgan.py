@@ -117,10 +117,10 @@ def objective_wgan(trial, X_train, y_train, use_gpu=False):
 
             # Log gradients for monitoring GAN stability
             for name, param in generator.named_parameters():
-                if param.grad is not None:
+                if param.grad is not None and param.grad.numel() > 0 and torch.isfinite(param.grad).all(): # prevents an error if the histogram is empty
                     model_logger.log_histogram(f"Gradients/Generator/{name}", param.grad, step=epoch)
             for name, param in critic.named_parameters():
-                if param.grad is not None:
+                if param.grad is not None and param.grad.numel() > 0 and torch.isfinite(param.grad).all(): # prevents an error if the histogram is empty
                     model_logger.log_histogram(f"Gradients/Critic/{name}", param.grad, step=epoch)            
 
             # Validation Loss

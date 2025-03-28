@@ -1,3 +1,6 @@
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
+
 import argparse
 import cudf
 import cupy as cp
@@ -13,9 +16,6 @@ from ccfd.utils.tensorboard_model_logger import ModelTensorBoardLogger
 from ccfd.utils.type_converter import to_numpy_safe
 from ccfd.models.autoencoder import FraudAutoencoder
 from ccfd.evaluation.threshold_analysis import compute_curve_values, find_best_threshold
-from cuml.preprocessing import StandardScaler as cuStandardScaler  # GPU-based scaler
-from sklearn.preprocessing import StandardScaler as skStandardScaler  # CPU-based scaler
-
 
 from ccfd.models.autoencoder import FraudAutoencoder
 from ccfd.models.vae import FraudVariationalAutoencoder

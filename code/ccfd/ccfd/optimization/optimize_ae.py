@@ -50,9 +50,17 @@ def objective_autoencoder(trial, X_train, train_params):
         optimizer = optim.Adam(model.parameters(), lr=lr)
 
         # Setup TensorBoard loggers for this fold
-        log_dir = f"runs/optuna_trials/trial_{trial.number}_fold_{fold_idx}"
-        model_logger = ModelTensorBoardLogger(log_dir=log_dir)
-        gpu_logger = GPUTensorBoardLogger(log_dir=log_dir) if use_gpu else None
+        #log_dir = f"runs/autoencoder_trials/trial_{trial.number}_fold_{fold_idx}"
+        #model_logger = ModelTensorBoardLogger(log_dir=log_dir)
+        #gpu_logger = GPUTensorBoardLogger(log_dir=log_dir) if use_gpu else None
+
+        trial_id = trial.number
+        model_logger = ModelTensorBoardLogger(log_dir=f"runs/autoencoder_trials/trial_{trial.number}_fold_{fold_idx}")
+        gpu_logger = (
+            GPUTensorBoardLogger(log_dir=f"runs/autoencoder_trials/gpu_trial_{trial_id}")
+            if use_gpu
+            else None
+        )        
 
         model.train()
         for epoch in range(epochs):

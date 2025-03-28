@@ -1,5 +1,7 @@
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
+
 import argparse
-import cudf
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from cuml.model_selection import train_test_split as cuml_train_test_split
