@@ -1,5 +1,9 @@
 To run this code, the configuration of a conda environment with all the required libraries is strongly suggested.
 
+Required libraries and modules:
+cudf, cupy, numpy, os, pandas, torch, imblearn, cuml, sklearn, typing, matplotlib, xgboost, optuna, joblib, pynvml, datetime, time, sys, argparse, seaborn, pytest
+
+
 Please chech the following pages to install NVIDIA drivers and RAPIDS libraries in your environment.
 https://docs.rapids.ai/install/ 
 https://developer.nvidia.com/rapids/get-started
