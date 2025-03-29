@@ -1,5 +1,7 @@
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # 0 = all logs, 1 = filter INFO, 2 = filter WARNING, 3 = filter ERROR
+
 import argparse
-import cudf
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
@@ -28,24 +30,22 @@ def test_models(params):
         params (dict): Dictionary containing all command-line arguments.
     """
     timer = Timer()
+    
+    use_gpu = params["device"] == "gpu"
 
-    print(f"\nLoading dataset...")
-    df = load_dataset(params["dataset_path"])
+    df = load_dataset(params["dataset_path"], use_gpu)
 
     results = []
-
-    use_gpu = params["device"] == "gpu"
 
     if use_gpu:
         gpu_monitor = GPUTensorBoardLogger(log_dir="runs/gpu_monitor")
     model_monitor = ModelTensorBoardLogger(log_dir="runs/model_monitor")
 
-    df = clean_dataset(df)
-    
+    df = clean_dataset(df, use_gpu)
+
     _, X_test, _, y_test = prepare_data(df, use_gpu=use_gpu)
 
     # Convert to NumPy for compatibility
-    #X_test = to_numpy_safe(X_test)
     y_test = to_numpy_safe(y_test)
 
     model_list = ["knn", "lr", "rf", "sgd", "xgboost"]
@@ -81,13 +81,20 @@ def test_models(params):
                     print(f"Model file {model_filename} not found. Skipping...")
                     continue
 
+                timer.start()
+
                 # Get discrete predictions
                 y_pred = model.predict(X_test)
-                
+
                 # Get probability estimates (if supported)
                 if hasattr(model, "predict_proba"):
-                    X_test_np = to_numpy_safe(X_test)
-                    y_proba = model.predict_proba(X_test_np)[:, 1]                    
+                    y_proba = model.predict_proba(X_test)
+
+                    # Extracts only Class 1 probabilities
+                    if hasattr(y_proba, "iloc"):  # cuDF or pandas DataFrame
+                        y_proba = y_proba.iloc[:, 1].to_numpy()
+                    else:  # NumPy array
+                        y_proba = y_proba[:, 1]
                 else:
                     y_proba = y_pred  # Default to predictions if the model does not support probabilities
 
@@ -95,6 +102,9 @@ def test_models(params):
 
                 # Evaluate model with selected metric
                 metrics = evaluate_model(y_test, y_pred, y_proba, params)
+
+                elapsed_time = round(timer.elapsed_final(), 2)
+                print(f"Total testing time: {elapsed_time}")
 
                 metrics["Model"] = model_name
                 metrics["Oversampling"] = ovs
@@ -176,7 +186,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--threshold",
-        type=float,        
+        type=float,
         help="Threshold value for evaluation.",
     )
     parser.add_argument(

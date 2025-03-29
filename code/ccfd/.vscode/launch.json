@@ -9,21 +9,21 @@
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.test_models",
-            "args": ["--device", "gpu", "--model", "knn", "--ovs", "smote", "--metric", "prauc", "--metric", "all", "--eval_method", "pr_curve", "--cost_fp", "1", "--cost_fn", "3"]
+            "args": ["--device", "gpu", "--model", "xgboost", "--ovs", "smote", "--metric", "recall", "--eval_method", "cost_based", "--cost_fp", "1", "--cost_fn", "3"]
         },
         {
             "name": "Python Debugger: train model",
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.train_models",
-            "args": ["--device", "gpu", "--model", "sgd", "--ovs", "smote", "--metric", "prauc", "--trials", "1", "--jobs", "1"]
+            "args": ["--device", "gpu", "--model", "xgboost", "--ovs", "smote", "--metric", "prauc", "--trials", "1", "--jobs", "1"]
         },
         {
             "name": "Python Debugger: optimize ovs",
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.optimize_ovs",
-            "args": ["--device", "gpu", "--ovs", "wgan", "--trials", "10", "--jobs", "1"]
+            "args": ["--device", "gpu", "--ovs", "gan", "--trials", "1", "--jobs", "1"]
         },
         {
             "name": "Python Debugger: optimize_autoencoder",
@@ -37,7 +37,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "scripts.test_autoencoders",
-            "args": ["--device", "gpu", "--model", "vae", "--threshold_method", "percentile", "--percentile", "95"]
+            "args": ["--device", "gpu", "--model", "vae", "--threshold_method", "cost_based", "--cost_fp", "1", "--cost_fn", "3"]
         }        
     ]
 }

@@ -105,7 +105,7 @@ def evaluate_model(
         precision, recall, thresholds = precision_recall_curve(y_true, y_proba)
 
         # Compute Cost-Based Metric
-        cost_metric = (cost_fp * (1 - precision)) + (cost_fn * (1 - recall))
+        cost_metric = (cost_fp * (1 - precision[:-1])) + (cost_fn * (1 - recall[:-1]))
 
         best_threshold = find_best_threshold(
             cost_metric, [], thresholds, curve_type="cost_based"

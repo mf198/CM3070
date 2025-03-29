@@ -14,15 +14,15 @@ def plot_saved_curves(pr_file, roc_file, cost_file):
     Returns:
         None
     """
-    # ✅ Load saved curve data
+    # Load saved curve data
     df_pr = pd.read_csv(pr_file)
     df_roc = pd.read_csv(roc_file)
     df_cost = pd.read_csv(cost_file)
 
-    # 📊 Create subplots
+    # Create subplots
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-    # 🔹 Precision-Recall Curve
+    # Precision-Recall Curve
     axes[0].plot(df_pr["recall"], df_pr["precision"], label="PR Curve", color="blue")
     axes[0].set_xlabel("Recall")
     axes[0].set_ylabel("Precision")
@@ -30,7 +30,7 @@ def plot_saved_curves(pr_file, roc_file, cost_file):
     axes[0].legend()
     axes[0].grid()
 
-    # 🔹 ROC Curve
+    # ROC Curve
     axes[1].plot(df_roc["fpr"], df_roc["tpr"], label="ROC Curve", color="green")
     axes[1].plot([0, 1], [0, 1], linestyle="--", color="gray")  # Diagonal line
     axes[1].set_xlabel("False Positive Rate")
@@ -39,7 +39,7 @@ def plot_saved_curves(pr_file, roc_file, cost_file):
     axes[1].legend()
     axes[1].grid()
 
-    # 🔹 Cost-Based Curve
+    # Cost-Based Curve
     axes[2].plot(df_cost["threshold"], df_cost["cost_metric"], label="Cost-Based Curve", color="red")
     axes[2].set_xlabel("Threshold")
     axes[2].set_ylabel("Cost Metric")
