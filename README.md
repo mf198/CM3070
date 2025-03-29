@@ -1,4 +1,4 @@
-To run this code, the configuration of a conda environment with all the required libraries is strongly suggested.
+To run this code, the configuration of a conda environment with all the required libraries is strongly recommended.
 
 Required libraries and modules:
 cudf, cupy, numpy, os, pandas, torch, imblearn, cuml, sklearn, typing, matplotlib, xgboost, optuna, joblib, pynvml, datetime, time, sys, argparse, seaborn, pytest
