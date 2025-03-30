@@ -5,12 +5,12 @@ cudf, cupy, numpy, os, pandas, torch, imblearn, cuml, sklearn, typing, matplotli
 
 
 Please chech the following pages to install NVIDIA drivers and RAPIDS libraries in your environment.
-https://docs.rapids.ai/install/ 
-https://developer.nvidia.com/rapids/get-started
-https://www.nvidia.com/en-us/drivers/
-
-How to use this project:
-
+https://docs.rapids.ai/install/  
+https://developer.nvidia.com/rapids/get-started  
+https://www.nvidia.com/en-us/drivers/  
+  
+How to use this project:  
+  
 1. Download the dataset from Kaggle.com website (https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud) and save it into the ccfd/data folder (name it creditcard.csv)  
 2. All command line commands must be run from inside the ccfd folder (the one containing: ccfd, results, runs, scripts and tests folder).  
 3. Pre-train the oversampling methods you want to use (only GAN and WGAN oversampling methods must be pre-trained).  
